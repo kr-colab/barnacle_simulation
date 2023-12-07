@@ -10,3 +10,8 @@ After SLiM 4.1 release
 - Implement life cycle
 - Seasonality
 - Others...
+
+Variables to (possibly) focus on
+- North/South clines
+- Salinity
+- Isolation-by-distance
