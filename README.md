@@ -10,6 +10,7 @@ After SLiM 4.1 release
 - Implement life cycle
 - Seasonality
 - Others...
+- pointDeviated
 
 Variables to (possibly) focus on
 - North/South clines
