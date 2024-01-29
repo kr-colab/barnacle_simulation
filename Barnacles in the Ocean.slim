@@ -1,0 +1,122 @@
+// using localpopulationdensity function for competition (death rate)
+initialize() {
+	
+	initializeSLiMModelType("nonWF");
+	initializeSLiMOptions(dimensionality="xy");
+	initializeTreeSeq(checkCoalescence=T);
+	if (!exists("SD")) defineConstant("SD", 0.3);  // sigma_D, the dispersal distance
+	if (!exists("SI")) defineConstant("SI", SD);  // sigma_I, the spatial interaction distance
+	if (!exists("K")) defineConstant("K", 1.0);  // carrying-capacity per unit square (roughly) 
+	if (!exists("W")) defineConstant("W", 13.83);  // width and height of the simulated area
+	if (!exists("H")) defineConstant("H", 19.54);  // width and height of the simulated area
+	if (!exists("L")) defineConstant("L", 4);    // mean lifetime at stationarity ( = 1 / mean fecundity)
+	if (!exists("outpath")) defineConstant("outpath", "~/Desktop/space_data/"); //for the files I want
+	//if (!exists("outpath")) defineConstant("outpath", "Victoria/"); for others to use this code
+	if (!exists("trial")) defineConstant("trial", "111"); // Can be rewritten to work in a loop/ snakemake
+	defineConstant("SM", SI);  // sigma_M, the mate choice distance
+	//defineConstant("Tsim", pmin(5000, asInteger(K * W * W / 10))); // running time of the simulation
+	defineConstant("G", 1e8);  // genome length - originally it was 1e8. Decreased it so that the simulation runs faster and not use as much memory.
+	defineConstant("FECUN", 1/L); // mean fecundity
+	defineConstant("RHO", FECUN/((1+FECUN) * K)); // constant in spatial competition function
+	initializeMutationType("m1", 0.5, "f", 0.0);
+	initializeGenomicElementType("g1", m1, 1.0);
+	initializeGenomicElement(g1, 0, G-1);
+	initializeMutationRate(0); // neutral mutation rate set to zero b/c we can introduce them in tree sequence.
+	initializeRecombinationRate(1e-8);
+	
+	//Maps
+	defineConstant("min_l", 1); // how easly it is to live at the edge of the mountain 
+	defineConstant("max_l", 20); // how difficult it is to live at the top of the mountain (white soace) 
+	defineConstant("image_location", "PacificCoast.png"); // picture location
+	
+	//ending condition
+	defineConstant("NUMGENS", 300); // how long to run for
+	
+	// spatial competition
+	initializeInteractionType(1, "xy", reciprocal=T, maxDistance=SI * 3);
+	i1.setInteractionFunction("n", 1.0/sqrt(2*PI*SI^2), SI);
+	
+	// mate choice
+	initializeInteractionType(2, "xy", reciprocal=T, maxDistance=SM * 3);
+	i2.setInteractionFunction("n", 1.0/sqrt(2*PI*SM^2), SM);
+}
+reproduction() {
+	mate = i2.drawByStrength(individual, 1);
+	if (mate.size()) {
+		nOff = rpois(1, FECUN);
+		for (i in seqLen(nOff)) {
+			pos = Map.sampleNearbyPoint(individual.spatialPosition, 3 * SD, "n", SD);			
+			//pos = individual.spatialPosition + rnorm(2, 0, SD);
+			if (p1.pointInBounds(pos)) {
+				offspring = subpop.addCrossed(individual, mate);
+				offspring.setSpatialPosition(pos);
+			}
+		}
+	}
+	return;
+}
+1 early() {
+	community.rescheduleScriptBlock(s99, ticks=NUMGENS);
+	sim.addSubpop("p1", asInteger(K * W * H));
+	p1.setSpatialBounds(c(0, 0, W, H));
+	mapImage = Image(image_location);
+	map_vals = (1-mapImage.floatR) *(max_l-min_l);
+	
+	
+	map_vals = p1.defineSpatialMap("world", "xy", map_vals, valueRange=c(min_l, max_l), colors=c('#FFFFFF', '#000000'));
+	defineConstant("Map", map_vals);
+	
+	
+	for (ind in p1.individuals) {
+		ind.setSpatialPosition(p1.pointUniform());
+	}
+	i1.evaluate(p1);
+	
+}
+early() {
+	
+	i1.evaluate(p1);
+	inds = p1.individuals;
+	// I use local population density function instead of CJ's custom survival rate function (lpd function takes edge effect into account)
+	competition = i1.localPopulationDensity(inds);
+	local_l = p1.spatialMapValue("world", inds.spatialPosition);
+	inds.fitnessScaling = 1/(1 + (RHO * competition / local_l));
+	
+	mapImage = Image(image_location);
+	// How many individuals in the top 25% of the map (white area) = min+0.75*(max-min)
+}
+1: late() {
+	// to be ready for mate choice
+	i2.evaluate(p1);
+	
+	inds = p1.individuals;
+	
+	ind_den = i2.localPopulationDensity(inds);
+	local_l = p1.spatialMapValue("world", inds.spatialPosition);
+	mapImage = Image(image_location);
+	pixial = (local_l-min_l)/(max_l-min_l);
+	top = min_l+ 0.75*(max_l - min_l);
+	mid = min_l+ 0.50*(max_l - min_l);
+	low = min_l+ 0.25*(max_l - min_l);
+	
+	top = sum (local_l >= top);
+	mid_top = sum (local_l >= mid & local_l < top);
+	mid_low = sum (local_l >= low & local_l < mid);
+	low = sum (local_l <= low);
+	
+	defineGlobal("top", top);
+	defineGlobal("mid_top", mid_top);
+	defineGlobal("mid_low", mid_low);
+	defineGlobal("low", low);
+	
+	
+}
+late(){ //in case the population dies out
+	if (length(p1.individuals) == 0) {
+		sim.simulationFinished();
+	}
+}
+s99 3000 late() {
+	sim.simulationFinished();
+}
+//Test
