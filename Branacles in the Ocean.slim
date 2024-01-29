@@ -45,7 +45,8 @@ reproduction() {
 	if (mate.size()) {
 		nOff = rpois(1, FECUN);
 		for (i in seqLen(nOff)) {
-			pos = individual.spatialPosition + rnorm(2, 0, SD);
+			pos = Map.sampleNearbyPoint(individual.spatialPosition, 3 * SD, "n", SD);			
+			//pos = individual.spatialPosition + rnorm(2, 0, SD);
 			if (p1.pointInBounds(pos)) {
 				offspring = subpop.addCrossed(individual, mate);
 				offspring.setSpatialPosition(pos);
@@ -62,8 +63,8 @@ reproduction() {
 	map_vals = (1-mapImage.floatR) *(max_l-min_l);
 	
 	
-	p1.defineSpatialMap("world", "xy", map_vals, valueRange=c(min_l, max_l), colors=c('#FFFFFF', '#000000'));
-	
+	map_vals = p1.defineSpatialMap("world", "xy", map_vals, valueRange=c(min_l, max_l), colors=c('#FFFFFF', '#000000'));
+	defineConstant("Map", map_vals);
 	
 	
 	for (ind in p1.individuals) {
@@ -168,3 +169,4 @@ late(){ //in case the population dies out
 s99 3000 late() {
 	sim.simulationFinished();
 }
+//Test
