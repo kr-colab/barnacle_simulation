@@ -10,9 +10,17 @@ After SLiM 4.1 release
 - Implement life cycle
 - Seasonality
 - Others...
-- pointDeviated
+- 
 
 Variables to (possibly) focus on
 - North/South clines
 - Salinity
 - Isolation-by-distance
+- Coastal ecosystem?
+
+Building our own SliMulation top down
+- genome (lenght, recombinations)
+- dispersal
+- reproduction
+- map -> fitness, dispersal
+- output (e.g. tree sequences)
