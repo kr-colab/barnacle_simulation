@@ -7,3 +7,10 @@ Cline Ideas:
 2) environment (physical barrier between populations)
 	requires variance in maps
 3) dispersal barrier
+
+Control - Does age-structure (life cycle) matter?
+	Juveniles smaller, not fully motile but moved by currents, must find location to settle
+	Once adults settle then they can grow, but cannot move
+
+Explore age-restrictions on mating ability and dispersal
+16.18 A sexual, age-structured spatial model
