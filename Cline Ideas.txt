@@ -1,0 +1,9 @@
+Cline Ideas:
+2 isolated populations that then intermix with a reproduction barrier (sigmoidal curve of allele frequency) between them
+
+1) genetic (heterozygotes between populations are less fit and die off)
+	requires genetic incompatibility/local adaptations
+	might require multiple simulations, one spatial and one non-spatial
+2) environment (physical barrier between populations)
+	requires variance in maps
+3) dispersal barrier
