@@ -14,3 +14,22 @@ Control - Does age-structure (life cycle) matter?
 
 Explore age-restrictions on mating ability and dispersal
 16.18 A sexual, age-structured spatial model
+
+## Notes for the life stages
+
+2 life stages: adults and juveniles.
+
+Simulation starts with the adults. They have a fixed survival probability (for now, this can be expanded in future models, e.g., making it conditional on environmental variables over space), a small reproduction interaction distance, high fecundity, and no dispersal. They mate and produce the next life stage.
+
+Juveniles have a (for now) fixed survival probability (likely lower than the adults), no reproduction, and high dispersal. After some time (how much?), they can transition into adults. For this, they have to settle. Settlement is limited by the carrying capacity (can be further expanded with other variables at a later stage).
+
+TODO: Fill this info.
+
+| Life Stage            | Adult            | Juvenile          |
+| --------------------- | ---------------- | ----------------- |
+| Survival probability  | ???              | Less than adults? |
+| Dispersal             | 0                | Some large value  |
+| Reproduction distance | Some small value | 0                 |
+| Fecundity             | Some large value | 0                 |
+| Something else?       | ...              | ...               |
+
