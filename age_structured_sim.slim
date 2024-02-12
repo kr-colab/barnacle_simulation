@@ -1,0 +1,69 @@
+// Keywords: nonWF, non-Wright-Fisher, continuous space, continuous spatial landscape, selfing, spatial competition, spatial mate choice
+
+initialize() {
+	initializeSLiMModelType("nonWF");
+	initializeSLiMOptions(dimensionality="xy");
+	defineConstant("K", 300);   // carrying-capacity density
+	defineConstant("S", 0.1);   // sigma_S, the spatial interaction width
+	
+	// Some constants
+	defineConstant("settlementAge", 2);
+	
+	// TODO: add genetics
+	// TODO: add map
+	
+	// spatial competition
+	initializeInteractionType(1, "xy", reciprocal=T, maxDistance=S * 3);
+	i1.setInteractionFunction("n", 1.0, S);
+	// Limit spatial competition below a certain age
+	i1.setConstraints("both", minAge=settlementAge);
+	
+	// spatial mate choice
+	initializeInteractionType(2, "xy", reciprocal=T, maxDistance=0.1);
+	// Both exerter and receiver can only mate if they're old enough, aka if they have settled
+	i2.setConstraints("both", minAge=settlementAge);
+}
+1 early() {
+	sim.addSubpop("p1", K);
+	p1.individuals.setSpatialPosition(p1.pointUniform(K));
+}
+2: first() {
+	// look for mates
+	i2.evaluate(p1);
+}
+reproduction() {
+	// choose our nearest neighbor as a mate, within the max distance
+	mate = i2.nearestInteractingNeighbors(individual, 1);
+	// Update this with the nearbyPoint functions
+	if (mate.size() > 0)
+		subpop.addCrossed(individual, mate, count=rpois(1, 1.5));
+}
+early() {
+	// first, conduct age-related mortality with killIndividuals()
+	inds = p1.individuals;
+	ages = inds.age;
+	
+	inds4 = inds[ages == 4];
+	inds5 = inds[ages == 5];
+	inds6 = inds[ages >= 6];
+	death4 = (runif(inds4.size()) < 0.10);
+	death5 = (runif(inds5.size()) < 0.30);
+	sim.killIndividuals(c(inds4[death4], inds5[death5], inds6));
+	
+	// disperse prior to density-dependence
+	inds = p1.individuals;
+	pos = inds.spatialPosition;
+	// Set a constraint to stop dispersal in the adults
+	pos = p1.pointDeviated(inds.size(), pos, "reprising", INF, "n", 0.02);
+	inds.setSpatialPosition(pos);
+	
+	// TODO: add something to kill the barnacles!!!
+	// This has to be age dependent to differentiate adults from juvenile mortality
+	
+	// spatial competition provides density-dependent selection
+	i1.evaluate(p1);
+	competition = i1.localPopulationDensity(inds);
+	// Add and if statement so the fitness reductions is only in adults, aka juveniles are floating around and do not compete with the adults
+	inds.fitnessScaling = K / competition;
+}
+1000 late() { }
