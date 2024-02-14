@@ -3,14 +3,33 @@
 initialize() {
 	initializeSLiMModelType("nonWF");
 	initializeSLiMOptions(dimensionality="xy");
+	initializeTreeSeq();
+	
+	// Some biological constants
+	defineConstant("settlementAge", 2);
 	defineConstant("K", 300);   // carrying-capacity density
 	defineConstant("S", 0.1);   // sigma_S, the spatial interaction width
+	defineConstant("adultSurvivalProb", 0.70);
+	defineConstant("juvenileSurvivalProb", 0.50);	
 	
-	// Some constants
-	defineConstant("settlementAge", 2);
+	// TODO: adjust different interaction distances for adults vs juveniles	
 	
-	// TODO: add genetics
-	// TODO: add map
+	// Genome
+	defineConstant("G", 1e6);   // Genome length 1 Mbp for now
+	defineConstant("Mu", 1e-8); // Mutation Rate
+	defineConstant("Re", 1e-8); // Recombination Rate
+	initializeMutationType("m1", 0.5, "f", 0.0);
+	initializeGenomicElementType("g1", m1, 1.0);
+	initializeGenomicElement(g1, 0, G-1);
+	initializeMutationRate(0); // Keeping this as 0 for the TreeSequence analysis
+	initializeRecombinationRate(Re);
+	
+	// Map
+	defineConstant("min_l", 1); // how easly it is to live at the edge of the mountain 
+	defineConstant("max_l", 20); // how difficult it is to live at the top of the mountain (white soace) 
+	defineConstant("image_location", "/Users/angelrc/Dropbox/SLiM_training/20240212.Age_structure_spatial_model/barnacles_map.png"); // picture location
+	if (!exists("W")) defineConstant("W", 13.83);  // width and height of the simulated area
+	if (!exists("H")) defineConstant("H", 19.54);  // width and height of the simulated area
 	
 	// spatial competition
 	initializeInteractionType(1, "xy", reciprocal=T, maxDistance=S * 3);
@@ -18,14 +37,24 @@ initialize() {
 	// Limit spatial competition below a certain age
 	i1.setConstraints("both", minAge=settlementAge);
 	
+	// TODO check the land vs non-land in map
+	
+	
 	// spatial mate choice
 	initializeInteractionType(2, "xy", reciprocal=T, maxDistance=0.1);
 	// Both exerter and receiver can only mate if they're old enough, aka if they have settled
 	i2.setConstraints("both", minAge=settlementAge);
 }
 1 early() {
-	sim.addSubpop("p1", K);
-	p1.individuals.setSpatialPosition(p1.pointUniform(K));
+	sim.addSubpop("p1", asInteger(K * W * H));
+	p1.setSpatialBounds(c(0, 0, W, H));
+	p1.individuals.setSpatialPosition(p1.pointUniform(asInteger(K * W * H)));
+
+	// Process the map
+	mapImage = Image(image_location);
+	map_vals = (1-mapImage.floatR) *(max_l-min_l);	
+	map_vals = p1.defineSpatialMap("world", "xy", map_vals, valueRange=c(min_l, max_l), colors=c('#FFFFFF', '#000000'));
+	defineConstant("Map", map_vals);
 }
 2: first() {
 	// look for mates
@@ -51,19 +80,22 @@ early() {
 	sim.killIndividuals(c(inds4[death4], inds5[death5], inds6));
 	
 	// disperse prior to density-dependence
-	inds = p1.individuals;
-	pos = inds.spatialPosition;
-	// Set a constraint to stop dispersal in the adults
-	pos = p1.pointDeviated(inds.size(), pos, "reprising", INF, "n", 0.02);
-	inds.setSpatialPosition(pos);
-	
-	// TODO: add something to kill the barnacles!!!
-	// This has to be age dependent to differentiate adults from juvenile mortality
+	juveniles = p1.subsetIndividuals(maxAge = settlementAge); // Define juveniles as younger than settlement age
+	adults = p1.subsetIndividuals(minAge = settlementAge+1);  // Adults are older than settlement age
+
+	// Set dispersal for the juveniles
+	pos = juveniles.spatialPosition;
+	// Enable dispersal only in the juveniles
+	pos = p1.pointDeviated(juveniles.size(), pos, "reprising", INF, "n", 0.02);
+	juveniles.setSpatialPosition(pos);
 	
 	// spatial competition provides density-dependent selection
 	i1.evaluate(p1);
-	competition = i1.localPopulationDensity(inds);
+	competition = i1.localPopulationDensity(adults);
 	// Add and if statement so the fitness reductions is only in adults, aka juveniles are floating around and do not compete with the adults
-	inds.fitnessScaling = K / competition;
+	// Scale the juvenile and adult fitness based on a survival probability
+	// TODO: scale this with age???
+	adults.fitnessScaling = (K / competition) * adultSurvivalProb ;
+	juveniles.fitnessScaling = juvenileSurvivalProb ;
 }
-1000 late() { }
+300 late() { }
