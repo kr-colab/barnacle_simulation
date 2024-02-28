@@ -10,7 +10,12 @@ initialize() {
 	defineConstant("K", 300);   // carrying-capacity density
 	defineConstant("S", 0.1);   // sigma_S, the spatial interaction width
 	defineConstant("adultSurvivalProb", 0.70);
-	defineConstant("juvenileSurvivalProb", 0.50);	
+	defineConstant("juvenileSurvivalProb", 0.50);
+	
+	// TODO: adjust the value of L. Barnacles were immediately dying at L>0.5
+	if (!exists("L")) defineConstant("L", 0.5);    // mean lifetime at stationarity ( = 1 / mean fecundity)
+	defineConstant("FECUN", 1/L); // mean fecundity
+	defineConstant("RHO", FECUN/((1+FECUN) * K)); // constant in spatial competition function
 	
 	// TODO: adjust different interaction distances for adults vs juveniles	
 	
@@ -27,17 +32,15 @@ initialize() {
 	// Map
 	defineConstant("min_l", 1); // how easly it is to live at the edge of the mountain 
 	defineConstant("max_l", 20); // how difficult it is to live at the top of the mountain (white soace) 
-	defineConstant("image_location", "/Users/angelrc/Dropbox/SLiM_training/20240212.Age_structure_spatial_model/barnacles_map.png"); // picture location
-	if (!exists("W")) defineConstant("W", 13.83);  // width and height of the simulated area
-	if (!exists("H")) defineConstant("H", 19.54);  // width and height of the simulated area
+	defineConstant("image_location", "/Users/angelrc/Dropbox/SLiM_training/20240228.age_structured_sim/coos-bay.png"); // picture location
+	if (!exists("W")) defineConstant("W", 10.80);  // width and height of the simulated area
+	if (!exists("H")) defineConstant("H", 10.80);  // width and height of the simulated area
 	
 	// spatial competition
 	initializeInteractionType(1, "xy", reciprocal=T, maxDistance=S * 3);
 	i1.setInteractionFunction("n", 1.0, S);
 	// Limit spatial competition below a certain age
 	i1.setConstraints("both", minAge=settlementAge);
-	
-	// TODO check the land vs non-land in map
 	
 	
 	// spatial mate choice
@@ -65,7 +68,7 @@ reproduction() {
 	mate = i2.nearestInteractingNeighbors(individual, 1);
 	// Update this with the nearbyPoint functions
 	if (mate.size() > 0)
-		subpop.addCrossed(individual, mate, count=rpois(1, 1.5));
+		subpop.addCrossed(individual, mate, count=rpois(1, FECUN));
 }
 early() {
 	// first, conduct age-related mortality with killIndividuals()
@@ -93,9 +96,12 @@ early() {
 	i1.evaluate(p1);
 	competition = i1.localPopulationDensity(adults);
 	// Add and if statement so the fitness reductions is only in adults, aka juveniles are floating around and do not compete with the adults
+	// Determine the location in the map to scale the fitness
+	adult_local_l = p1.spatialMapValue("world", adults.spatialPosition);
+	juvs_local_l = p1.spatialMapValue("world", juveniles.spatialPosition);
 	// Scale the juvenile and adult fitness based on a survival probability
 	// TODO: scale this with age???
-	adults.fitnessScaling = (K / competition) * adultSurvivalProb ;
-	juveniles.fitnessScaling = juvenileSurvivalProb ;
+	adults.fitnessScaling = 1/(1 + (RHO * competition / adult_local_l)) ; //*adultSurvivalProb ;
+	juveniles.fitnessScaling = juvenileSurvivalProb ;//juvenileSurvivalProb * juvs_local_l ;
 }
 300 late() { }
