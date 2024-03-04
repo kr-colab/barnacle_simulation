@@ -8,12 +8,13 @@ initialize() {
 	// Some biological constants
 	defineConstant("settlementAge", 2);
 	defineConstant("K", 300);   // carrying-capacity density
-	defineConstant("SA", 0.1); //competition for adult settlement & mating distance
-	defineConstant("SJ", 2.0); //dispersal of offspring
+	defineConstant("SA", 0.1);  // sigma_S, the spatial interaction width for Adults (settlement + reproduction)
+	defineConstats("SJ", 2.0);  // sigma_S, the spatial interaction width for Juveniles (dispersal)
 	defineConstant("adultSurvivalProb", 0.70);
 	defineConstant("juvenileSurvivalProb", 0.50);
 	
-	// TODO: adjust the value of L. Barnacles were immediately dying at L>0.5
+	// Fecundity & Reproduction
+	
 	defineConstant("FECUN", 2.0); // mean fecundity
 	defineConstant("RHO", FECUN/((1+FECUN) * K)); // constant in spatial competition function
 	
@@ -37,14 +38,15 @@ initialize() {
 	if (!exists("H")) defineConstant("H", 10.80);  // width and height of the simulated area
 	
 	// spatial competition
-	initializeInteractionType(1, "xy", reciprocal=T, maxDistance=SA * 3);
+	initializeInteractionType(1, "xy", reciprocal=T, maxDistance=SA*3);
 	i1.setInteractionFunction("n", 1.0, SA);
 	// Limit spatial competition below a certain age
 	i1.setConstraints("both", minAge=settlementAge);
 	
 	
 	// spatial mate choice
-	initializeInteractionType(2, "xy", reciprocal=T, maxDistance=0.1);
+	initializeInteractionType(2, "xy", reciprocal=T, maxDistance=SA);
+	i2.setInteractionFunction("n", 1.0, SA);
 	// Both exerter and receiver can only mate if they're old enough, aka if they have settled
 	i2.setConstraints("both", minAge=settlementAge);
 }
@@ -72,14 +74,16 @@ reproduction() {
 }
 early() {
 	
-	// disperse prior to density-dependence
+	// Set the two age classes
+	// Juveniles: can disperse, cannot reproduce
+	// Adults: cannot disperse, can reproduce
 	juveniles = p1.subsetIndividuals(maxAge = settlementAge); // Define juveniles as younger than settlement age
 	adults = p1.subsetIndividuals(minAge = settlementAge+1);  // Adults are older than settlement age
 
 	// Set dispersal for the juveniles
 	pos = juveniles.spatialPosition;
 	// Enable dispersal only in the juveniles
-	pos = p1.pointDeviated(juveniles.size(), pos, "reprising", INF, "n", 0.02);
+	pos = Map.sampleNearbyPoint(pos, 3*SJ, "n", SJ);
 	juveniles.setSpatialPosition(pos);
 	
 	// spatial competition provides density-dependent selection
@@ -89,7 +93,6 @@ early() {
 	// Determine the location in the map to scale the fitness
 	adult_local_l = p1.spatialMapValue("world", adults.spatialPosition);
 	juvs_local_l = p1.spatialMapValue("world", juveniles.spatialPosition);
-	pos = Map.sampleNearbyPoint(pos,3*SJ,"n",SJ);
 	// Scale the juvenile and adult fitness based on a survival probability
 	// TODO: scale this with age???
 	adults.fitnessScaling = 1/(1 + (RHO * competition / adult_local_l)) ; //*adultSurvivalProb ;
