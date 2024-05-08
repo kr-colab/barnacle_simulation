@@ -7,15 +7,15 @@ initialize() {
 	
 	// Some biological constants
 	defineConstant("settlementAge", 2);
-	defineConstant("K", 300);   // carrying-capacity density
+	defineConstant("K", 3000);   // carrying-capacity density
 	defineConstant("SA", 0.1);  // sigma_S, the spatial interaction width for Adults (settlement + reproduction)
 	defineConstant("SJ", 2.0);  // sigma_S, the spatial interaction width for Juveniles (dispersal)
 	defineConstant("adultSurvivalProb", 0.70);
-	defineConstant("juvenileSurvivalProb", 0.50);
+	defineConstant("juvenileSurvivalProb", 0.10);
 	
 	// Fecundity & Reproduction
 	
-	defineConstant("FECUN", 2.0); // mean fecundity
+	defineConstant("FECUN", 20.0); // mean fecundity
 	defineConstant("RHO", FECUN/((1+FECUN) * K)); // constant in spatial competition function
 	
 	// TODO: adjust different interaction distances for adults vs juveniles	
@@ -97,5 +97,17 @@ early() {
 	// TODO: scale this with age???
 	adults.fitnessScaling = 1/(1 + (RHO * competition / adult_local_l)); //*adultSurvivalProb;
 	juveniles.fitnessScaling = juvenileSurvivalProb ;//juvenileSurvivalProb * juvs_local_l ;
+}
+early (){
+	// first, conduct age-related mortality with killIndividuals()
+	inds = p1.individuals;
+	ages = inds.age;
+	
+	inds24 = inds[ages == 24];
+	inds27 = inds[ages == 27];
+	inds30 = inds[ages >= 30];
+	death24 = (runif(inds24.size()) < 0.10);
+	death27 = (runif(inds27.size()) < 0.30);
+	sim.killIndividuals(c(inds24[death24], inds27[death27], inds30));
 }
 300 late() { }
