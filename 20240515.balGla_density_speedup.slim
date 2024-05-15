@@ -1,0 +1,147 @@
+// Keywords: nonWF, non-Wright-Fisher, continuous space, continuous spatial landscape, selfing, spatial competition, spatial mate choice
+
+initialize() {
+	initializeSLiMModelType("nonWF");
+	initializeSLiMOptions(dimensionality="xy");
+	initializeTreeSeq();
+	
+	// Some biological constants
+	defineConstant("settlementAge", 2);
+	defineConstant("K", 300);   // carrying-capacity density
+	defineConstant("SA", 0.1);  // sigma_A, the spatial interaction width for Adults (settlement + reproduction)
+	defineConstant("SJ", 2.0);  // sigma_J, the spatial interaction width for Juveniles (dispersal)
+	// NOTE: @Alex changed density/fecundity and survival probs. We need to look into these because the pops can die easily.
+	defineConstant("adultSurvivalProb", 0.70);
+	defineConstant("juvenileSurvivalProb", 0.50);
+	
+	// Fecundity & Reproduction
+	
+	defineConstant("FECUN", 20.0); // mean fecundity
+	defineConstant("RHO", FECUN/((1+FECUN) * K)); // constant in spatial competition function
+	
+	// TODO: adjust different interaction distances for adults vs juveniles	
+	
+	// Genome
+	defineConstant("G", 1e6);   // Genome length 1 Mbp for now
+	//defineConstant("Mu", 1e-8); // Mutation Rate
+	defineConstant("Re", 1e-8); // Recombination Rate
+	initializeMutationType("m1", 0.5, "f", 0.0);
+	initializeGenomicElementType("g1", m1, 1.0);
+	initializeGenomicElement(g1, 0, G-1);
+	initializeMutationRate(0); // Keeping this as 0 for the TreeSequence analysis
+	initializeRecombinationRate(Re);
+	
+	// Map
+	// TODO: Split this into migration (water) map vs habitat (coastline) map
+	defineConstant("min_l", 1); // how easly it is to live at the edge of the mountain 
+	defineConstant("max_l", 20); // how difficult it is to live at the top of the mountain (white space) 
+	defineConstant("image_location", "./coos-bay.png"); // picture location
+	if (!exists("W")) defineConstant("W", 10.80);  // width and height of the simulated area
+	if (!exists("H")) defineConstant("H", 10.80);  // width and height of the simulated area
+	
+	// spatial competition
+	initializeInteractionType(1, "xy", reciprocal=T, maxDistance=SA*3);
+	i1.setInteractionFunction("n", 1.0, SA);
+	// Limit spatial competition below a certain age
+	i1.setConstraints("both", minAge=settlementAge+1);
+	
+	// spatial mate choice
+	initializeInteractionType(2, "xy", reciprocal=T, maxDistance=SA);
+	i2.setInteractionFunction("n", 1.0, SA);
+	// Both exerter and receiver can only mate if they're old enough, aka if they have settled
+	i2.setConstraints("both", minAge=settlementAge+1);
+}
+1 early() {
+	sim.addSubpop("p1", asInteger(K * W * H));
+	p1.setSpatialBounds(c(0, 0, W, H));
+	p1.individuals.setSpatialPosition(p1.pointUniform(asInteger(K * W * H)));
+	
+	// Process the maps
+	// TODO: Add the second map
+	mapImage = Image(image_location);
+	map_vals = (1-mapImage.floatR) *(max_l-min_l);	
+	map_vals = p1.defineSpatialMap("world", "xy", map_vals, valueRange=c(min_l, max_l), colors=c('#FFFFFF', '#000000'));
+	defineConstant("Map", map_vals);
+	
+	// Define the adults, which are the ones important for density
+	adults = p1.subsetIndividuals(minAge = settlementAge+1);  // Adults are older than settlement age	
+	
+	// Set up a map of density (to speed up competition calculations)
+	// TODO: This dies because there are no adults at this stage
+	grid_dims = asInteger(2 * (p1.spatialBounds[c(2,3)] - p1.spatialBounds[c(0,1)]) / SA);
+	raw = summarizeIndividuals(adults, grid_dims, p1.spatialBounds,
+		operation="individuals.size();", perUnitArea=T);
+	density_map = p1.defineSpatialMap("density", "xy", raw);
+	density_map.smooth(SA * 3, "n", SA);
+	defineGlobal("GRID_DIMS", grid_dims);
+	defineGlobal("DENSITY", density_map);
+}
+
+2: first() {
+	// look for mates
+	i2.evaluate(p1);
+	
+	// Define the adults, which are the ones important for density
+	adults = p1.subsetIndividuals(minAge = settlementAge+1);  // Adults are older than settlement age	
+
+	// update map of density based on death in the previous time interval
+	raw = summarizeIndividuals(adults, GRID_DIMS, p1.spatialBounds,
+		operation="individuals.size();", perUnitArea=T);
+	DENSITY.changeValues(raw);
+	DENSITY.smooth(SA * 3, "n", SA);
+}
+
+reproduction() {
+	// Choose your possible mates based on the calculated density map
+	// TODO: Double check this distinguishes between adults and juveniles
+	mate_location = DENSITY.sampleNearbyPoint(individual.spatialPosition, 3 * SA, "n", SA);
+	mate = i2.nearestNeighborsOfPoint(mate_location, p1, 1);
+	if (mate.size())
+		subpop.addCrossed(individual, mate, count=rpois(1, FECUN));
+}
+
+// We removed an early() density map update
+// since reproduction generates juveniles and
+// density map only accounts for adults.
+
+early() {
+	// Set the two age classes
+	// Juveniles: can disperse, cannot reproduce
+	// Adults: cannot disperse, can reproduce
+	juveniles = p1.subsetIndividuals(maxAge = settlementAge); // Define juveniles as younger than settlement age
+	adults = p1.subsetIndividuals(minAge = settlementAge+1);  // Adults are older than settlement age
+
+	// Set dispersal for the juveniles
+	pos = juveniles.spatialPosition;
+	// Enable dispersal only in the juveniles
+	pos = Map.sampleNearbyPoint(pos, 3*SJ, "n", SJ);
+	juveniles.setSpatialPosition(pos);
+
+	// Measure local density of adults and use it for density regulation
+	competition = p1.spatialMapValue(DENSITY, adults.spatialPosition);
+
+	// Add and if statement so the fitness reductions is only in adults, aka juveniles are floating around and do not compete with the adults
+	// Determine the location in the map to scale the fitness
+	// TODO: The map has to be replaced to the new habitat map
+	adult_local_l = p1.spatialMapValue("world", adults.spatialPosition);
+
+	// Scale the juvenile and adult fitness based on a survival probability
+	// TODO: scale this with age???
+	adults.fitnessScaling = 1/(1 + (RHO * competition / adult_local_l));
+	juveniles.fitnessScaling = juvenileSurvivalProb ;
+}
+
+early (){
+	// first, conduct age-related mortality with killIndividuals()
+	inds = p1.individuals;
+	ages = inds.age;
+	
+	inds24 = inds[ages == 24];
+	inds27 = inds[ages == 27];
+	inds30 = inds[ages >= 30];
+	death24 = (runif(inds24.size()) < 0.10);
+	death27 = (runif(inds27.size()) < 0.30);
+	sim.killIndividuals(c(inds24[death24], inds27[death27], inds30));
+}
+
+300 late() { }
