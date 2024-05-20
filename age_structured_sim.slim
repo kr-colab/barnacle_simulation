@@ -18,7 +18,7 @@ initialize() {
 	defineConstant("FECUN", 20.0); // mean fecundity
 	defineConstant("RHO", FECUN/((1+FECUN) * K)); // constant in spatial competition function
 	
-	// TODO: adjust different interaction distances for adults vs juveniles	
+
 	
 	// Genome
 	defineConstant("G", 1e6);   // Genome length 1 Mbp for now
@@ -31,18 +31,17 @@ initialize() {
 	initializeRecombinationRate(Re);
 	
 	// Map
-	defineConstant("min_l", 1); // how easly it is to live at the edge of the mountain 
-	defineConstant("max_l", 20); // how difficult it is to live at the top of the mountain (white space) 
-	defineConstant("image_location", "./coos-bay.png"); // picture location
-	if (!exists("W")) defineConstant("W", 10.80);  // width and height of the simulated area
-	if (!exists("H")) defineConstant("H", 10.80);  // width and height of the simulated area
+	defineConstant("min_l", 1); // How easy it is to live in water
+	defineConstant("max_l", 20); // How difficult it is to live on land 
+	defineConstant("image_location", "./coos-bay.png"); // map file location
+	if (!exists("W")) defineConstant("W", 10.80);  // width of the simulated area
+	if (!exists("H")) defineConstant("H", 10.80);  // height of the simulated area
 	
 	// spatial competition
 	initializeInteractionType(1, "xy", reciprocal=T, maxDistance=SA*3);
 	i1.setInteractionFunction("n", 1.0, SA);
 	// Limit spatial competition below a certain age
 	i1.setConstraints("both", minAge=settlementAge+1);
-	
 	
 	// spatial mate choice
 	initializeInteractionType(2, "xy", reciprocal=T, maxDistance=SA);
