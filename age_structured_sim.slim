@@ -9,7 +9,7 @@ initialize() {
 
 	// Some biological constants
 	defineConstant("settlementAge", 2);
-	defineConstant("K", 5000);  // carrying-capacity density
+	defineConstant("K", 500);  // carrying-capacity density
 	defineConstant("SA", 0.1);  // sigma_S, the spatial interaction width for Adults (settlement + reproduction)
 	defineConstant("SJ", 2.0);  // sigma_S, the spatial interaction width for Juveniles (dispersal)
 	defineConstant("adultSurvivalProb", 0.70);
@@ -55,6 +55,7 @@ initialize() {
 }
 1 early() {
 	sim.addSubpop("p1", asInteger(K * W * H));
+	p1.individuals.age = rdunif(58320, min=0, max=7);
 	p1.setSpatialBounds(c(0, 0, W, H));
 	p1.individuals.setSpatialPosition(p1.pointUniform(asInteger(K * W * H)));
 
