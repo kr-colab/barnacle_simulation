@@ -13,7 +13,7 @@ initialize() {
 	defineConstant("SA", 0.1);  // sigma_S, the spatial interaction width for Adults (settlement + reproduction)
 	defineConstant("SJ", 2.0);  // sigma_S, the spatial interaction width for Juveniles (dispersal)
 	defineConstant("adultSurvivalProb", 0.70);
-	defineConstant("juvenileSurvivalProb", 0.1);
+	defineConstant("juvenileSurvivalProb", 0.02);
 
 	// Fecundity & Reproduction
 	defineConstant("FECUN", 1000.0); // mean fecundity
@@ -31,7 +31,7 @@ initialize() {
 
 	// Maps
 	// Map 1: Water vs Land for juvenile dispersal
-	defineConstant("coast_image_location", "./coos-bay-coast.png"); // map file location
+	defineConstant("coast_image_location", "./coos-bay-coast-no-rivers.png"); // map file location
 	// Map 2: Available habitat for adults
 	defineConstant("habitat_image_location", "./coos-bay-habitat.png"); // map file location
 	// This applies to both maps
