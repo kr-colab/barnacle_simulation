@@ -9,8 +9,10 @@ initialize() {
 
 	// Some biological constants
 	defineConstant("settlementAge", 2);
+	// TODO: This has to be largely increased, since now it has 10K^2 adults per 10Km x 10Km
 	defineConstant("K", 10000);  // carrying-capacity density
-	defineConstant("SA", 0.1);  // sigma_S, the spatial interaction width for Adults (settlement + reproduction)
+	// Adult mating distance is VERY small, so just scale it by K
+	defineConstant("SA", 1/sqrt(K));  // sigma_S, the spatial interaction width for Adults (settlement + reproduction)
 	defineConstant("SJ", 10.0);  // sigma_S, the spatial interaction width for Juveniles (dispersal)
 	defineConstant("adultSurvivalProb", 0.9);
 	defineConstant("juvenileSurvivalProb", 0.1);
@@ -18,7 +20,7 @@ initialize() {
 	defineConstant("settlementSurvivalProb",0.6);
 
 	// Fecundity & Reproduction
-	defineConstant("FECUN", 1500.0); // mean fecundity
+	defineConstant("FECUN", 1500); // mean fecundity
 	defineConstant("RHO", FECUN/((1+FECUN) * K)); // constant in spatial competition function
 	defineConstant("PBROOD", 0.4); // Proportion of the population brooding, see Berger 2009 Mar Eco
 
@@ -31,6 +33,15 @@ initialize() {
 	initializeGenomicElement(g1, 0, G-1);
 	initializeMutationRate(0); // Keeping this as 0 for the TreeSequence analysis
 	initializeRecombinationRate(Re);
+	
+	// TODO: create smoothed dispersal map
+	// Point 1 of Peter's new method
+	// for each grid cell midpoint j:
+	//	    x = rep(midpoint, 10000)
+	//     for k in step_to_settlement (i.e., 1:2)
+	//          x += dispersal (from the map sample nearby point, later more complex maybe)
+	//     # add to smoothed map at cell j
+	//     smoothed map[j] = mean(mapValues(x))
 
 	// Maps
 	// Map 1: Water vs Land for juvenile dispersal
@@ -87,6 +98,9 @@ reproduction() {
 	// PBROOD defines the proportion of the population that is actively brooding
 	// This is something than can be conditional to env
 	if ((mate.size() > 0) & (runif(1) < PBROOD))
+		// Point 2 of peter's method:
+		// Adjust fecundity based on the smoothed habitat map
+		// i.e., reproduction only produces a small number of VIABLE offspring (most die, only a few settle).
 		subpop.addCrossed(individual, mate, count=rpois(1, FECUN));
 }
 early() {
@@ -100,6 +114,8 @@ early() {
 	// Set dispersal for the juveniles
 	pos = juveniles.spatialPosition;
 	// Enable dispersal only in the juveniles
+	// Point 3 of Peter's method:
+	// Sample settlement positions of new adults from the smoothed map
 	pos = Map1.sampleNearbyPoint(pos, 3*SJ, "n", SJ);
 	juveniles.setSpatialPosition(pos);
 	
