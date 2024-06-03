@@ -12,7 +12,7 @@ initialize() {
 	// TODO: This has to be largely increased, since now it has 10K^2 adults per 10Km x 10Km
 	defineConstant("K", 10000);  // carrying-capacity density
 	// Adult mating distance is VERY small, so just scale it by K
-	defineConstant("SA", 1/sqrt(K));  // sigma_S, the spatial interaction width for Adults (settlement + reproduction)
+	defineConstant("SA", 10/sqrt(K));  // sigma_S, the spatial interaction width for Adults (settlement + reproduction)
 	defineConstant("SJ", 10.0);  // sigma_S, the spatial interaction width for Juveniles (dispersal)
 	defineConstant("adultSurvivalProb", 0.9);
 	defineConstant("juvenileSurvivalProb", 0.1);
@@ -47,7 +47,7 @@ initialize() {
 	// Map 1: Water vs Land for juvenile dispersal
 	defineConstant("coast_image_location", "./coos-bay-coast.png"); // map file location
 	// Map 2: Available habitat for adults
-	defineConstant("habitat_image_location", "./coos-bay-habitat.png"); // map file location
+	defineConstant("habitat_image_location", "./coos-bay-habitat-real.png"); // map file location
 	// This applies to both maps
 	defineConstant("min_l", 1); // How easy it is to live in water
 	defineConstant("max_l", 20); // How difficult it is to live on land 
