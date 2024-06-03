@@ -13,11 +13,8 @@ initialize() {
 	defineConstant("K", 10000);  // carrying-capacity density
 	// Adult mating distance is VERY small, so just scale it by K
 	defineConstant("SA", 10/sqrt(K));  // sigma_S, the spatial interaction width for Adults (settlement + reproduction)
-	defineConstant("SJ", 10.0);  // sigma_S, the spatial interaction width for Juveniles (dispersal)
-	defineConstant("adultSurvivalProb", 0.9);
-	defineConstant("juvenileSurvivalProb", 0.1);
-	// TODO: Add this as a transitory stage for adults shortly after settlement
-	defineConstant("settlementSurvivalProb",0.6);
+	defineConstant("SurvivalProb", 0.9);
+
 
 	// Fecundity & Reproduction
 	defineConstant("FECUN", 1500); // mean fecundity
@@ -43,6 +40,9 @@ initialize() {
 	//     # add to smoothed map at cell j
 	//     smoothed map[j] = mean(mapValues(x))
 	// need to account for time as juvenile, so delay settlement by 3 ticks
+
+	// need to add in general survival probability, fitness scaling, 
+
 
 	// Maps
 	// Map 1: Water vs Land for juvenile dispersal
@@ -106,19 +106,9 @@ reproduction() {
 }
 early() {
 	
-	// Set the two age classes
-	// Juveniles: can disperse, cannot reproduce
-	// Adults: cannot disperse, can reproduce
-	juveniles = p1.subsetIndividuals(maxAge = settlementAge); // Define juveniles as younger than settlement age
-	adults = p1.subsetIndividuals(minAge = settlementAge+1);  // Adults are older than settlement age
-
-	// Set dispersal for the juveniles
-	pos = juveniles.spatialPosition;
-	// Enable dispersal only in the juveniles
 	// Point 3 of Peter's method:
 	// Sample settlement positions of new adults from the smoothed map
 	pos = Map1.sampleNearbyPoint(pos, 3*SJ, "n", SJ);
-	juveniles.setSpatialPosition(pos);
 	
 	// spatial competition provides density-dependent selection
 	i1.evaluate(p1);
@@ -126,11 +116,9 @@ early() {
 	// Add and if statement so the fitness reductions is only in adults, aka juveniles are floating around and do not compete with the adults
 	// Determine the location in the map to scale the fitness
 	adult_local_l = p1.spatialMapValue("habitat", adults.spatialPosition);
-	juvs_local_l = p1.spatialMapValue("water", juveniles.spatialPosition);
 	// Scale the juvenile and adult fitness based on a survival probability
 	// TODO: scale this with age???
 	adults.fitnessScaling = 1/(1 + (RHO * competition / adult_local_l)); //*adultSurvivalProb;
-	juveniles.fitnessScaling = juvenileSurvivalProb ;//juvenileSurvivalProb * juvs_local_l ;
 }
 
 early (){
