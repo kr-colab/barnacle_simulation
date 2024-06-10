@@ -20,9 +20,9 @@ initialize() {
 	defineConstant("settlementSurvivalProb",0.6);
 
 	// Fecundity & Reproduction
-	defineConstant("FECUN", 1500); // mean fecundity
+	defineConstant("FECUN", 2000); // mean fecundity
 	defineConstant("RHO", FECUN/((1+FECUN) * K)); // constant in spatial competition function
-	defineConstant("PBROOD", 0.4); // Proportion of the population brooding, see Berger 2009 Mar Eco
+	defineConstant("PBROOD", 0.5); // Proportion of the population brooding, see Berger 2009 Mar Eco
 
 	// Genome
 	defineConstant("G", 1e6);   // Genome length 1 Mbp for now
@@ -47,10 +47,13 @@ initialize() {
 	// Map 1: Water vs Land for juvenile dispersal
 	defineConstant("coast_image_location", "./coos-bay-coast.png"); // map file location
 	// Map 2: Available habitat for adults
-	defineConstant("habitat_image_location", "./coos-bay-habitat-real.png"); // map file location
-	// This applies to both maps
+	defineConstant("habitat_image_location", "./coos-bay-habitat-extended.png"); // map file location
+	// Map 3: Environmental gradient
+	defineConstant("environment_image_location", "./coos-bay-environment.png");
+	// This applies to all maps
+	// TODO: Maybe adjust these for the environmental vs habitat maps
 	defineConstant("min_l", 1); // How easy it is to live in water
-	defineConstant("max_l", 20); // How difficult it is to live on land 
+	defineConstant("max_l", 20); // How difficult it is to live on land
 	if (!exists("W")) defineConstant("W", (10.80*1));  // width of the simulated area
 	if (!exists("H")) defineConstant("H", (10.80*1));  // height of the simulated area
 	
@@ -85,19 +88,25 @@ initialize() {
 	map2_vals = p1.defineSpatialMap("habitat", "xy", map2_vals,
 						valueRange=c(min_l, max_l), colors=c('#FFFFFF', '#000000'));
 	defineConstant("Map2", map2_vals);
-	
+	// Map 3:
+	// TODO: For now, single "environment" map, but this can be changed for several different variables
+	map3Image = Image(environment_image_location);
+	map3_vals = (1-map3Image.floatR) *(1.0-0.0);	
+	map3_vals = p1.defineSpatialMap("environment", "xy", map3_vals,
+						valueRange=c(0.0, 1.0), colors=c('#FFFFFF', '#000000'));
 }
+
 2: first() {
 	// look for mates
 	i2.evaluate(p1);
 }
 reproduction() {
+	// Calculate the probability of reproducing for a given individual based on the environmental maop
+	pbrood = p1.spatialMapValue("environment", individual.spatialPosition);
 	// choose our nearest neighbor as a mate, within the max distance
 	mate = i2.nearestInteractingNeighbors(individual, 1);
 	// Update this with the nearbyPoint functions
-	// PBROOD defines the proportion of the population that is actively brooding
-	// This is something than can be conditional to env
-	if ((mate.size() > 0) & (runif(1) < PBROOD))
+	if ((mate.size() > 0) & (runif(1) < pbrood))
 		// Point 2 of peter's method:
 		// Adjust fecundity based on the smoothed habitat map
 		// i.e., reproduction only produces a small number of VIABLE offspring (most die, only a few settle).
@@ -142,9 +151,9 @@ early (){
 	inds8 = inds[ages == (8*ticks_per_year)];
 	inds9 = inds[ages == (9*ticks_per_year)];
 	inds10 = inds[ages >= (10*ticks_per_year)];
-	death8 = (runif(inds8.size()) < 0.10);
-	death9 = (runif(inds9.size()) < 0.30);
-	death10 = (runif(inds10.size()) < 0.95);
+	death8 = (runif(inds8.size()) < 0.05);
+	death9 = (runif(inds9.size()) < 0.15);
+	death10 = (runif(inds10.size()) < 0.25);
 	sim.killIndividuals(c(inds8[death8], inds9[death9], inds10[death10]));
 }
 300 late() { }
