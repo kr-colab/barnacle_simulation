@@ -4,9 +4,9 @@ initialize() {
 	initializeSLiMModelType("nonWF");
 	initializeSLiMOptions(dimensionality="xy");
 	initializeTreeSeq();
-
+	
 	// NOTE: I adjusted K and FECUN so this could run on my machine for troubleshooting, but these need to be adjusted further.
-
+	
 	// Some biological constants
 	defineConstant("settlementAge", 2);
 	// TODO: This has to be largely increased, since now it has 10K^2 adults per 10Km x 10Km
@@ -18,12 +18,12 @@ initialize() {
 	defineConstant("juvenileSurvivalProb", 0.1);
 	// TODO: Add this as a transitory stage for adults shortly after settlement
 	defineConstant("settlementSurvivalProb",0.6);
-
+	
 	// Fecundity & Reproduction
 	defineConstant("FECUN", 1500); // mean fecundity
 	defineConstant("RHO", FECUN/((1+FECUN) * K)); // constant in spatial competition function
 	defineConstant("PBROOD", 0.4); // Proportion of the population brooding, see Berger 2009 Mar Eco
-
+	
 	// Genome
 	defineConstant("G", 1e6);   // Genome length 1 Mbp for now
 	//defineConstant("Mu", 1e-8); // Mutation Rate
@@ -37,31 +37,28 @@ initialize() {
 	// TODO: create smoothed dispersal map
 	// Point 1 of Peter's new method
 	// Use this to initialize grid:
-
-
+	
+	
 	// for each grid cell midpoint j:
 	//	    x = rep(midpoint, 10000)
 	//     for k in step_to_settlement (i.e., 1:2)
 	//          x += dispersal (from the map sample nearby point, later more complex maybe)
 	//     # add to smoothed map at cell j
 	//     smoothed map[j] = mean(mapValues(x))
-
+	
 	// Maps
 	// Map 1: Water vs Land for juvenile dispersal
 	defineConstant("coast_image_location", "./coos-bay-coast.png"); // map file location
 	// Map 2: Available habitat for adults
 	defineConstant("habitat_image_location", "./coos-bay-habitat.png"); // map file location
-	// This applies to both maps
-	defineConstant("min_l", 1); // How easy it is to live in water
-	defineConstant("max_l", 20); // How difficult it is to live on land 
 	if (!exists("W")) defineConstant("W", (10.80*1));  // width of the simulated area
 	if (!exists("H")) defineConstant("H", (10.80*1));  // height of the simulated area
 	
-
+	
 	// spatial competition
 	initializeInteractionType(1, "xy", reciprocal=T, maxDistance=SA*3);
 	i1.setInteractionFunction("n", 1.0, SA);
-
+	
 	// spatial mate choice
 	initializeInteractionType(2, "xy", reciprocal=T, maxDistance=SA);
 	i2.setInteractionFunction("n", 1.0, SA);
@@ -70,50 +67,43 @@ initialize() {
 	sim.addSubpop("p1", asInteger(K * W * H));
 	p1.setSpatialBounds(c(0, 0, W, H));
 	p1.individuals.setSpatialPosition(p1.pointUniform(asInteger(K * W * H)));
-
+	
 	// Process the maps
 	// Map 1:
 	map1Image = Image(coast_image_location);
-	map1_vals = (1-map1Image.floatR) *(max_l-min_l);	
+	map1_vals = 1-map1Image.floatR;
 	map1_vals = p1.defineSpatialMap("water", "xy", map1_vals,
-						valueRange=c(min_l, max_l), colors=c('#FFFFFF', '#000000'));
+		valueRange=c(0.0, 1.0), colors=c('#FFFFFF', '#000000'));
 	defineConstant("Map1", map1_vals);
-
+	
 	// Map 2:
 	map2Image = Image(habitat_image_location);
-	map2_vals = (1-map2Image.floatR) *(max_l-min_l);	
+	map2_vals = 1-map2Image.floatR;
 	map2_vals = p1.defineSpatialMap("habitat", "xy", map2_vals,
-						valueRange=c(min_l, max_l), colors=c('#FFFFFF', '#000000'));
+		valueRange=c(0.0, 1.0), colors=c('#FFFFFF', '#000000'));
 	defineConstant("Map2", map2_vals);
-
+	
 	// create settlement probability map (probability of an offspring generated at each location successfully settle somewhere in the future)
 	grid_dims = asInteger(2 * (p1.spatialBounds[c(2,3)] - p1.spatialBounds[c(0,1)]) / SA);
-	x_mid_points = ((0:(grid_dims[0]-1))+0.5) * (p1.spatialBounds[2]-p1.spatialBounds[0]) / SA;
-	y_mid_points = ((0:(grid_dims[1]-1))+0.5) * (p1.spatialBounds[3]-p1.spatialBounds[1]) / SA;
-	X_matrix = repEach(x_mid_points, grid_dims[1]);
-	Y_matrix = rep(y_mid_points, grid_dims[0]);
-	// combine X_matrix and Y_matrix to create a list of coordinates to pass to sampleNearbyPoint() (top row = X, bottom row = Y)
-	// first, make a matrix with the dimension we want and then replace the values with X, Y matrix
-	XY_matrix = matrix(rep(-1.0, 2 * grid_dims[0] * grid_dims[1]), nrow=2, ncol=grid_dims[0]*grid_dims[1]);
-	XY_matrix[0, 0:(grid_dims[0]*grid_dims[1]-1)] = X_matrix;
-	XY_matrix[1, 0:(grid_dims[0]*grid_dims[1]-1)] = Y_matrix;
 	
-	P_settlement = rep(0.0, grid_dims[0] * grid_dims[1]);
-	
-	// how many time to replate the measurement
-	n_measure = 100;
-	for (n in 1:(n_measure)){
-		XY_displaced = XY_matrix;
-		XY_displaced = p1.pointDeviated(size(X_matrix), XY_displaced, "reprising", 3*SJ*settlementAge, "n", SJ*settlementAge);
-//		for (timestep in 1:settlementAge){
-//			XY_displaced = Map1.sampleNearbyPoint(XY_displaced, 3*SJ, "n", SJ);
-//		}
-		P_settlement = P_settlement + p1.spatialMapValue("habitat", XY_displaced) / (n_measure);
+	n_measure = asInteger(10 * K);
+	P_settlement = matrix(rep(0.0, grid_dims[0] * grid_dims[1]), nrow=grid_dims[0], ncol=grid_dims[1]);
+	for (i in 0:(grid_dims[0]-1)) {
+		for (j in 0:(grid_dims[1]-1)) {
+			pos = c((p1.spatialBounds[2]-p1.spatialBounds[0]) / SA * (i+0.5), (p1.spatialBounds[3]-p1.spatialBounds[1]) / SA * (j+0.5));
+			pos_rep = rep(pos, n_measure);
+			if (p1.spatialMapValue("water", pos) > 0.0) {
+				for (t in 1:settlementAge) {
+					pos_rep = Map1.sampleNearbyPoint(pos_rep, 3*SJ, "n", SJ);
+				}
+				P_settlement[i,j] = P_settlement[i,j] + sum(p1.spatialMapValue("habitat", pos_rep)) / n_measure;
+			}
+		}
 	}
-	P_settlement = matrix(P_settlement, nrow=grid_dims[0], ncol=grid_dims[1]);
-	p_settlement_map = p1.defineSpatialMap("settlement_prob_map", "xy", P_settlement);
+	
+	p_settlement_map = p1.defineSpatialMap("settlement_prob_map", "xy", P_settlement, valueRange=c(0.0, 1.0), colors=c('#FFFFFF', '#000000'));
 	defineConstant("SETTLEMENT_PROB_MAP", p_settlement_map);
-
+	
 	
 	// add a second subpopulations for offspring until it reaches settlement age
 	sim.addSubpop("p2", 0);
@@ -130,10 +120,15 @@ reproduction(p1) {
 	// Update this with the nearbyPoint functions
 	// PBROOD defines the proportion of the population that is actively brooding
 	// This is something than can be conditional to env
-
+	
 	// Todo : define map_val as a convolution between dispersal map and habitat map (not sure if smooth can do this because it looks like the kernel has to be a pre-defined probability distribution like normal distribution)	
 	fecun = p1.spatialMapValue("settlement_prob_map",individual.spatialPosition) * FECUN ;
-	offspring_count = rpois(1, fecun);
+	if (fecun > 0.0) {
+		offspring_count = rpois(1, fecun);
+	}
+	else {
+		offspring_count = 0;
+	}
 	if ((mate.size() > 0) & (runif(1) < PBROOD) & (offspring_count>0))
 		// Point 2 of peter's method:
 		// Adjust fecundity based on the smoothed habitat map
@@ -164,7 +159,7 @@ early (){
 	ages = inds.age;
 	
 	ticks_per_year = 3;
-
+	
 	inds8 = inds[ages == (8*ticks_per_year)];
 	inds9 = inds[ages == (9*ticks_per_year)];
 	inds10 = inds[ages >= (10*ticks_per_year)];
