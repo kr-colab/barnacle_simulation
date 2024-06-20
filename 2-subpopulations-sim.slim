@@ -6,13 +6,15 @@ initialize() {
 	initializeTreeSeq();
 	
 	// Some biological constants
-	defineConstant("settlementAge", 3);
+	defineConstant("Y", 4); // Number of ticks per year	
+	defineConstant("settlementAge", 1*Y);
 	defineConstant("K", 300);   // carrying-capacity density
 	defineConstant("SA", 0.1);  // sigma_S, the spatial interaction width for Adults (settlement + reproduction)
 	defineConstant("SJ", 2.0);  // sigma_S, the spatial interaction width for Juveniles (dispersal)
 	defineConstant("adultSurvivalProb", 0.70);
 	defineConstant("juvenileSurvivalProb", 0.15);
 	defineConstant("P", 300);	// population starting size
+
 	
 	// Fecundity & Reproduction
 	
@@ -34,7 +36,7 @@ initialize() {
 	// Map
 	defineConstant("min_l", 1); // How easy it is to live in water
 	defineConstant("max_l", 20); // How difficult it is to live on land 
-	defineConstant("image_location", "./coos-bay.png"); // map file location
+	defineConstant("image_location", "./coos-bay-habitat-extended.png"); // map file location
 	if (!exists("W")) defineConstant("W", 10.80);  // width of the simulated area
 	if (!exists("H")) defineConstant("H", 10.80);  // height of the simulated area
 	
@@ -104,11 +106,11 @@ early (){
 	inds = p1.individuals;
 	ages = inds.age;
 	
-	inds24 = inds[ages == 24];
-	inds27 = inds[ages == 27];
-	inds30 = inds[ages >= 30];
-	death24 = (runif(inds24.size()) < 0.10);
-	death27 = (runif(inds27.size()) < 0.30);
-	sim.killIndividuals(c(inds24[death24], inds27[death27], inds30));
+	inds6 = inds[ages == 6*Y];
+	inds7 = inds[ages == 7*Y];
+	inds8 = inds[ages >= 8*Y];
+	death6 = (runif(inds6.size()) < 0.10);
+	death7 = (runif(inds7.size()) < 0.30);
+	sim.killIndividuals(c(inds6[death6], inds7[death7], inds8));
 }
 100 late() { }
