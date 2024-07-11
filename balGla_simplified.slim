@@ -12,10 +12,11 @@ initialize() {
 	defineConstant("settlementAge", TICKS_PER_YEAR);
 	// TODO : find out conversion between pixel to Km
 	// TODO: This has to be largely increased, since now it has 10K^2 adults per 10Km x 10Km
-	defineConstant("K", 10000);  // carrying-capacity density
+	defineConstant("K", 25);  // carrying-capacity density
 	// Adult mating distance is VERY small, so just scale it by K
-	defineConstant("SA", 1/sqrt(K));  // sigma_S, the spatial interaction width for Adults (settlement + reproduction)
-	defineConstant("SJ", 10.0);  // sigma_S, the spatial interaction width for Juveniles (dispersal)
+	defineConstant("SAS", 5.0*2);  // sigma_S, the spatial interaction width for Adults Settlement
+	defineConstant("SAR", (1.0*2)/sqrt(K)); //sigma_S, the spatial interaction width for Adult Reproduction
+	defineConstant("SJ", 10.0*2);  // sigma_S, the spatial interaction width for Juvenile Dispersal
 	
 	// Fecundity & Reproduction
 	defineConstant("FECUN", 1.); // mean fecundity times the probability that new offpsring survive to become an adult (therefore, this number is much lower than the actual fecundity)
@@ -37,24 +38,24 @@ initialize() {
 	defineConstant("coast_image_location", "./coos-bay-coast.png"); // map file location
 	// Map 2: Available habitat for adults
 	defineConstant("habitat_image_location", "./coos-bay-habitat-extended.png"); // map file location
-	if (!exists("W")) defineConstant("W", (10.80*1));  // width of the simulated area
-	if (!exists("H")) defineConstant("H", (10.80*1));  // height of the simulated area
+	if (!exists("W")) defineConstant("W", (10.80*2));  // width of the simulated area
+	if (!exists("H")) defineConstant("H", (10.80*2));  // height of the simulated area
 	
 	
 	// spatial competition
-	initializeInteractionType(1, "xy", reciprocal=T, maxDistance=SA*3);
-	i1.setInteractionFunction("n", 1.0, SA);
+	initializeInteractionType(1, "xy", reciprocal=T, maxDistance=SAR*3);
+	i1.setInteractionFunction("n", 1.0, SAR);
 	i1.setConstraints("both", minAge = settlementAge + 1);
 	
 	// spatial mate choice
-	initializeInteractionType(2, "xy", reciprocal=T, maxDistance=SA);
-	i2.setInteractionFunction("n", 1.0, SA);
+	initializeInteractionType(2, "xy", reciprocal=T, maxDistance=SAR);
+	i2.setInteractionFunction("n", 1.0, SAR);
 	i2.setConstraints("both", minAge = settlementAge + 1);
 }
 1 first() {
-	sim.addSubpop("p1", asInteger(K * W * H/100));
+	sim.addSubpop("p1", asInteger(K * W * H / (100*4)));
 	p1.setSpatialBounds(c(0, 0, W, H));
-	p1.individuals.setSpatialPosition(p1.pointUniform(asInteger(K * W * H / 100)));
+	p1.individuals.setSpatialPosition(p1.pointUniform(asInteger(K * W * H / (100*4))));
 	
 	// Process the maps
 	// Map 1:
@@ -81,23 +82,35 @@ first() {
 
 reproduction() {
 	// choose our nearest neighbor as a mate, within the max distance
-	mate = i2.nearestInteractingNeighbors(individual, 1);
-	offspring_count = rpois(1, FECUN);
-	if ((mate.size() > 0) & (runif(1) < PBROOD) & (offspring_count>0))
-		p1.addCrossed(individual, mate, count=rpois(1, offspring_count));
-}
+	mate = i2.drawByStrength(individual, 1);
+	nOff = rpois (1, FECUN);
+	if ((mate.size() > 0) & (runif(1) < PBROOD) & (nOff>0)) {
+		for (i in seqLen(nOff)) {
+			pos = Map1.sampleNearbyPoint(individual.spatialPosition, SAR, "n", SAR/2);			
+			//pos = individual.spatialPosition + rnorm(2, 0, SD);
+			if (p1.pointInBounds(pos)) {
+				offspring = subpop.addCrossed(individual, mate);
+				offspring.setSpatialPosition(pos);
+			}
+		}
+	}
+}	
+	//mate = i2.nearestInteractingNeighbors(individual, 1);
+	//offspring_count = rpois(1, FECUN);
+	//if ((mate.size() > 0) & (runif(1) < PBROOD) & (offspring_count>0))
+		//p1.addCrossed(individual, mate, count=rpois(1, offspring_count));
 early() {
 	// move all juveniles in the ocean
 	juveniles = p1.subsetIndividuals(maxAge = settlementAge - 1);
 	pos = juveniles.spatialPosition;
-	pos = Map1.sampleNearbyPoint(pos, INF, "n", SJ);
+	pos = Map1.sampleNearbyPoint(pos, INF, "n", SJ); // SJ represents the standard deviation of settlement
 	juveniles.setSpatialPosition(pos);
 	
 	// make new adults settle to habitable area
 	new_adults = p1.subsetIndividuals(minAge = settlementAge, maxAge = settlementAge);
 	// set settlement positions of the new adults
 	pos = new_adults.spatialPosition;
-	pos = Map2.sampleNearbyPoint(pos, INF, "n", SJ);
+	pos = Map2.sampleNearbyPoint(pos, SJ, "n", SAS); // SAS represents the standard deviation of settlement
 	new_adults.setSpatialPosition(pos);
 	// spatial competition provides density-dependent selection
 	i1.evaluate(p1);
@@ -108,6 +121,9 @@ early() {
 	adult_local_l = p1.spatialMapValue("habitat", adults.spatialPosition);
 	adults.fitnessScaling = 1/(1 + (RHO * competition / adult_local_l));
 	adults.color = "yellow";	
+	
+	density=summarizeIndividuals(p1.individuals, c(25,25), p1.spatialBounds, operation="individuals.size();", empty=0.0, perUnitArea=T);
+	p1.defineSpatialMap("density", "xy", density, T, c(0,K), colors(20,"heat"));	
 	
 	juveniles.color = "red";
 	// kill adults close to the maximum lifespan (~10yrs)
@@ -123,4 +139,5 @@ early() {
 	death10 = (runif(inds10.size()) < 0.95);
 	sim.killIndividuals(c(inds8[death8], inds9[death9], inds10[death10]));
 }
+
 300 late() { }
