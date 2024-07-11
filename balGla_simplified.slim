@@ -81,7 +81,7 @@ first() {
 }
 
 reproduction() {
-	// choose our nearest neighbor as a mate, within the max distance
+	// choose our nearest neighbor as a mate, within the max distance. This is where I added in the code from BarnaclesInTheOcean.slim
 	mate = i2.drawByStrength(individual, 1);
 	nOff = rpois (1, FECUN);
 	if ((mate.size() > 0) & (runif(1) < PBROOD) & (nOff>0)) {
@@ -95,10 +95,12 @@ reproduction() {
 		}
 	}
 }	
+// old reproduction code in case we need it
 	//mate = i2.nearestInteractingNeighbors(individual, 1);
 	//offspring_count = rpois(1, FECUN);
 	//if ((mate.size() > 0) & (runif(1) < PBROOD) & (offspring_count>0))
 		//p1.addCrossed(individual, mate, count=rpois(1, offspring_count));
+		
 early() {
 	// move all juveniles in the ocean
 	juveniles = p1.subsetIndividuals(maxAge = settlementAge - 1);
@@ -120,17 +122,16 @@ early() {
 	// Determine the location in the map to scale the fitness
 	adult_local_l = p1.spatialMapValue("habitat", adults.spatialPosition);
 	adults.fitnessScaling = 1/(1 + (RHO * competition / adult_local_l));
-	adults.color = "yellow";	
+	adults.color = "yellow";
+	juveniles.color = "red";	
 	
+	// Density map, was thinking to only track adults or only track juveniles, but ran into issues replacing p1.individuals in line 126 
 	density=summarizeIndividuals(p1.individuals, c(25,25), p1.spatialBounds, operation="individuals.size();", empty=0.0, perUnitArea=T);
 	p1.defineSpatialMap("density", "xy", density, T, c(0,K), colors(20,"heat"));	
 	
-	juveniles.color = "red";
 	// kill adults close to the maximum lifespan (~10yrs)
 	inds = p1.individuals;
 	ages = inds.age;
-	
-	
 	inds8 = inds[(ages >= (8*TICKS_PER_YEAR)) & (ages < (9*TICKS_PER_YEAR))];
 	inds9 = inds[(ages >= (9*TICKS_PER_YEAR)) & (ages < (10*TICKS_PER_YEAR))];
 	inds10 = inds[ages >= (10*TICKS_PER_YEAR)];
@@ -139,5 +140,4 @@ early() {
 	death10 = (runif(inds10.size()) < 0.95);
 	sim.killIndividuals(c(inds8[death8], inds9[death9], inds10[death10]));
 }
-
 300 late() { }
