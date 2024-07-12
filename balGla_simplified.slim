@@ -88,10 +88,8 @@ reproduction() {
 		for (i in seqLen(nOff)) {
 			pos = Map1.sampleNearbyPoint(individual.spatialPosition, SAR, "n", SAR/2);			
 			//pos = individual.spatialPosition + rnorm(2, 0, SD);
-			if (p1.pointInBounds(pos)) {
-				offspring = subpop.addCrossed(individual, mate);
-				offspring.setSpatialPosition(pos);
-			}
+			p1.addCrossed(individual, mate, count=1);
+		
 		}
 	}
 }	
