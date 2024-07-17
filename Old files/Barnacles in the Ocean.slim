@@ -7,8 +7,8 @@ initialize() {
 	if (!exists("SD")) defineConstant("SD", 0.3);  // sigma_D, the dispersal distance
 	if (!exists("SI")) defineConstant("SI", SD);  // sigma_I, the spatial interaction distance
 	if (!exists("K")) defineConstant("K", 1.0);  // carrying-capacity per unit square (roughly) 
-	if (!exists("W")) defineConstant("W", 13.83);  // width and height of the simulated area
-	if (!exists("H")) defineConstant("H", 19.54);  // width and height of the simulated area
+	if (!exists("W")) defineConstant("W", 19.5);  // width and height of the simulated area
+	if (!exists("H")) defineConstant("H", 19.5);  // width and height of the simulated area
 	if (!exists("L")) defineConstant("L", 4);    // mean lifetime at stationarity ( = 1 / mean fecundity)
 	if (!exists("outpath")) defineConstant("outpath", "~/Desktop/space_data/"); //for the files I want
 	//if (!exists("outpath")) defineConstant("outpath", "Victoria/"); for others to use this code
@@ -27,7 +27,7 @@ initialize() {
 	//Maps
 	defineConstant("min_l", 1); // how easly it is to live at the edge of the mountain 
 	defineConstant("max_l", 20); // how difficult it is to live at the top of the mountain (white soace) 
-	defineConstant("image_location", "PacificCoast.png"); // picture location
+	defineConstant("image_location", "./coos-bay-coastline.png"); // picture location
 	
 	//ending condition
 	defineConstant("NUMGENS", 300); // how long to run for
