@@ -8,15 +8,16 @@ initialize() {
 	// NOTE: I adjusted K and FECUN so this could run on my machine for troubleshooting, but these need to be adjusted further.
 	
 	// Some biological constants
-	defineConstant("TICKS_PER_YEAR", 3);
+	defineConstant("TICKS_PER_YEAR", 4);
 	defineConstant("settlementAge", TICKS_PER_YEAR);
-	// TODO : find out conversion between pixel to Km
+	defineConstant("Units_per_KM", 1);
 	// TODO: This has to be largely increased, since now it has 10K^2 adults per 10Km x 10Km
-	defineConstant("K", 25);  // carrying-capacity density
+	defineConstant("K", 9.75);  // carrying-capacity density
 	// Adult mating distance is VERY small, so just scale it by K
-	defineConstant("SAS", 5.0*2);  // sigma_S, the spatial interaction width for Adults Settlement
-	defineConstant("SAR", (1.0*2)/sqrt(K)); //sigma_S, the spatial interaction width for Adult Reproduction
-	defineConstant("SJ", 10.0*2);  // sigma_S, the spatial interaction width for Juvenile Dispersal
+	defineConstant("SAS", 9.75);  // sigma_S, the spatial interaction width for Adults Settlement
+	defineConstant("SAR", (3.9)/sqrt(K)); //sigma_S, the spatial interaction width for Adult Reproduction
+	defineConstant("SJ", 1.95);  // sigma_S, the spatial interaction width for Juvenile Dispersal
+	defineConstant("SDJ", 0.975); //sigma_S, the standard deviation of the spatial interation width for Juvenile Dispersal
 	
 	// Fecundity & Reproduction
 	defineConstant("FECUN", 1.); // mean fecundity times the probability that new offpsring survive to become an adult (therefore, this number is much lower than the actual fecundity)
@@ -35,11 +36,13 @@ initialize() {
 	
 	// Maps
 	// Map 1: Water vs Land for juvenile dispersal
-	defineConstant("coast_image_location", "./coos-bay-coast.png"); // map file location
+	defineConstant("coast_image_location", "./coos-bay-coastline.png"); // map file location
 	// Map 2: Available habitat for adults
-	defineConstant("habitat_image_location", "./coos-bay-habitat-extended.png"); // map file location
-	if (!exists("W")) defineConstant("W", (10.80*2));  // width of the simulated area
-	if (!exists("H")) defineConstant("H", (10.80*2));  // height of the simulated area
+	defineConstant("habitat_image_location", "./habitat-extended.png"); // map file location
+	// Map 3: Grayscale salinity gradient 
+	defineConstant("salinity_gradient", "./winter-salinity-grayscale.png"); // map file location
+	if (!exists("W")) defineConstant("W", (19.5));  // width of the simulated area
+	if (!exists("H")) defineConstant("H", (19.5));  // height of the simulated area
 	
 	
 	// spatial competition
@@ -53,31 +56,72 @@ initialize() {
 	i2.setConstraints("both", minAge = settlementAge + 1);
 }
 1 first() {
-	sim.addSubpop("p1", asInteger(K * W * H / (100*4)));
+	sim.addSubpop("p1", asInteger((K * W * H) / 10));
 	p1.setSpatialBounds(c(0, 0, W, H));
-	p1.individuals.setSpatialPosition(p1.pointUniform(asInteger(K * W * H / (100*4))));
+	//p1.individuals.setSpatialPosition(p1.pointUniform(asInteger(K * W * H /100)));
 	
 	// Process the maps
-	// Map 1:
+	// Map 1: Coos bay outline
 	map1Image = Image(coast_image_location);
-	map1_vals = 1-map1Image.floatR;
-	map1_vals = p1.defineSpatialMap("water", "xy", map1_vals,
-		valueRange=c(0.0, 1.0), colors=c('#FFFFFF', '#000000'));
+	map1_vals = 1-map1Image.floatR; // converts the red information of an rgb image to a normalized scale from 0-1
+	map1_vals = p1.defineSpatialMap("coast outline", "xy", map1_vals, // reads the normalized scale (1 is black and 0 is white) so that disperal can
+		valueRange=c(0.0, 1.0), colors=c('#FFFFFF', '#000000'));		// be directed towards a high value (1, black) and away from a low value (0, white)
 	defineConstant("Map1", map1_vals);
 	Map1.rescale(min=1e-7);
 	
-	// Map 2:
+	// Map 2: Adult settlement habitat
 	map2Image = Image(habitat_image_location);
 	map2_vals = 1-map2Image.floatR;
-	map2_vals = p1.defineSpatialMap("habitat", "xy", map2_vals,
+	map2_vals = p1.defineSpatialMap("habitat", "xy", map2_vals, 
 		valueRange=c(0.0, 1.0), colors=c('#FFFFFF', '#000000'));
 	defineConstant("Map2", map2_vals);
 	Map2.rescale(min=1e-7);
+	
+	// Map 3: Salinity Gradient
+	map3Image = Image(salinity_gradient);
+	map3_vals = (1-map3Image.floatR); // *(1.0-0.0);	
+	map3_vals = p1.defineSpatialMap("salinity", "xy", map3_vals,
+		valueRange=c(0.0, 0.5), colors=c('#FFFFFF', '#000000'));
+	defineConstant("Map3", map3_vals);
+	Map3.rescale(min=1e-7);
+	
+	// Map 4: Smoothed adult settlement habitat
+	//map4Image = Image(habitat_image_location);
+	//map4_vals = 1-map4Image.floatR;
+	//map4_vals = p1.defineSpatialMap("smoothed habitat", "xy", map4_vals, valueRange=c(0.0,1.0), colors=c('#FFFFFF', '#000000'));
+	//defineConstant("Map4", map4_vals);
+	//Map4.rescale(min=1e-7);
+	//Map4.smooth(SJ, "n", SDJ);
+	
+	// Estuary starting point for initial individuals
+	//for (ind in p1.individuals) {
+		//random_x = runif(1, 0, W);
+		//random_y = runif(1, 0, H);
+		//pos = Map2.sampleNearbyPoint(c(random_x, random_y), INF, "n", SAS);
+		//ind.setSpatialPosition(pos);
+		//ind.x = rnorm(1, 16.575, 0.25);
+		//ind.y = rnorm(1, 9.75, 0.25);	
+}
+
+1 early() {
+	juveniles = p1.subsetIndividuals(maxAge = settlementAge - 1);
+	pos = juveniles.spatialPosition;	
+	pos = Map2.sampleNearbyPoint(pos, INF, "n", SAS*10);		
+	juveniles.setSpatialPosition(pos);
 }
 
 first() {
 	// look for mates
 	i2.evaluate(p1);
+	
+	// move all juveniles in the ocean
+	step_count = 10;
+	juveniles = p1.subsetIndividuals(maxAge = settlementAge - 1);
+	pos = juveniles.spatialPosition;
+	for (i in 1:step_count)	
+		pos = Map1.sampleNearbyPoint(pos, SJ/(10^(1/2)), "n", SDJ/(10^(1/2))); // SJ represents the standard deviation of settlement
+	juveniles.setSpatialPosition(pos);
+
 }
 
 reproduction() {
@@ -85,57 +129,66 @@ reproduction() {
 	mate = i2.drawByStrength(individual, 1);
 	nOff = rpois (1, FECUN);
 	if ((mate.size() > 0) & (runif(1) < PBROOD) & (nOff>0)) {
-		for (i in seqLen(nOff)) {
-			pos = Map1.sampleNearbyPoint(individual.spatialPosition, SAR, "n", SAR/2);			
-			//pos = individual.spatialPosition + rnorm(2, 0, SD);
-			p1.addCrossed(individual, mate, count=1);
-		
-		}
+		p1.addCrossed(individual, mate, count=nOff);
 	}
 }	
-// old reproduction code in case we need it
-	//mate = i2.nearestInteractingNeighbors(individual, 1);
-	//offspring_count = rpois(1, FECUN);
-	//if ((mate.size() > 0) & (runif(1) < PBROOD) & (offspring_count>0))
-		//p1.addCrossed(individual, mate, count=rpois(1, offspring_count));
-		
+
+	//TODO: Organize steps in order: early (1. reproduction, 2. dispersal, 3. settlement (using smoothed map), [simulate density map?]), late (4. adult competition, 5. juvenile death due to environment, 6. adult death due to age)
+
 early() {
-	// move all juveniles in the ocean
-	juveniles = p1.subsetIndividuals(maxAge = settlementAge - 1);
-	pos = juveniles.spatialPosition;
-	pos = Map1.sampleNearbyPoint(pos, INF, "n", SJ); // SJ represents the standard deviation of settlement
-	juveniles.setSpatialPosition(pos);
 	
 	// make new adults settle to habitable area
 	new_adults = p1.subsetIndividuals(minAge = settlementAge, maxAge = settlementAge);
 	// set settlement positions of the new adults
 	pos = new_adults.spatialPosition;
-	pos = Map2.sampleNearbyPoint(pos, SJ, "n", SAS); // SAS represents the standard deviation of settlement
+	pos = Map2.sampleNearbyPoint(pos, SJ*10, "n", SAS); // SAS represents the standard deviation of settlement
 	new_adults.setSpatialPosition(pos);
+	//TODO: Add smoothed map to help with adult settlement (gets around sampleNearbyPoint issue)
+	
+	
 	// spatial competition provides density-dependent selection
 	i1.evaluate(p1);
-	// Add and if statement so the fitness reductions is only in adults, aka juveniles are floating around and do not compete with the adults
+	// Add an if statement so the fitness reductions is only in adults, aka juveniles are floating around and do not compete with the adults
 	adults = p1.subsetIndividuals(minAge = settlementAge);
 	competition = i1.localPopulationDensity(adults);
 	// Determine the location in the map to scale the fitness
 	adult_local_l = p1.spatialMapValue("habitat", adults.spatialPosition);
 	adults.fitnessScaling = 1/(1 + (RHO * competition / adult_local_l));
-	adults.color = "yellow";
-	juveniles.color = "red";	
 	
-	// Density map, was thinking to only track adults or only track juveniles, but ran into issues replacing p1.individuals in line 126 
+	young_juveniles = p1.subsetIndividuals(minAge = 0, maxAge = 1);
+	mid_juveniles = p1.subsetIndividuals(minAge = 2, maxAge = 2);
+	old_juveniles = p1.subsetIndividuals(minAge = 3, maxAge = settlementAge-1);
+	young_adults = p1.subsetIndividuals(minAge = settlementAge, maxAge = 4*settlementAge);
+	old_adults = p1.subsetIndividuals(minAge = (4*settlementAge)+1);
+	young_juveniles.color = "red";
+	mid_juveniles.color = "orange";
+	old_juveniles.color = "yellow";
+	young_adults.color = "green";
+	//old_adults.color = "blue";	
+
+// Density map (when I want to add back in
 	density=summarizeIndividuals(p1.individuals, c(25,25), p1.spatialBounds, operation="individuals.size();", empty=0.0, perUnitArea=T);
-	p1.defineSpatialMap("density", "xy", density, T, c(0,K), colors(20,"heat"));	
-	
+	p1.defineSpatialMap("density", "xy", density, T, c(0,K), colors(20, "viridis"));	
+
 	// kill adults close to the maximum lifespan (~10yrs)
 	inds = p1.individuals;
 	ages = inds.age;
-	inds8 = inds[(ages >= (8*TICKS_PER_YEAR)) & (ages < (9*TICKS_PER_YEAR))];
-	inds9 = inds[(ages >= (9*TICKS_PER_YEAR)) & (ages < (10*TICKS_PER_YEAR))];
-	inds10 = inds[ages >= (10*TICKS_PER_YEAR)];
+	inds8 = inds[(ages >= (8*TICKS_PER_YEAR/4)) & (ages < (9*TICKS_PER_YEAR/4))];
+	inds9 = inds[(ages >= (9*TICKS_PER_YEAR/4)) & (ages < (10*TICKS_PER_YEAR/4))];
+	inds10 = inds[ages >= (10*TICKS_PER_YEAR/4)];
 	death8 = (runif(inds8.size()) < 0.10);
 	death9 = (runif(inds9.size()) < 0.30);
 	death10 = (runif(inds10.size()) < 0.95);
 	sim.killIndividuals(c(inds8[death8], inds9[death9], inds10[death10]));
+	
 }
-300 late() { }
+500 late() { 
+	sim.treeSeqOutput("./Week 5/balGla_5-1.trees");
+	catn("Done.");
+	sim.simulationFinished();
+}
+
+
+	
+	// density map coloration options: "cm", "heat", "terrain"; parula", "hot", "jet", 
+	// "turbo", "gray"; "magma", "inferno", "plasma", "viridis", and "cividis" 	
