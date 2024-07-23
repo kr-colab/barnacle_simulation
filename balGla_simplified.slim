@@ -32,11 +32,12 @@ initialize() {
 	// M2 mutations good in estuary
 	initializeMutationType("m2", 0.5, "n", 0.0, 1.0); // QTL
 	m2.convertToSubstitution = F;	
-	// M3 mutations good on open ocean
-	initializeMutationType("m3", 0.5, "n", 0.0, 1.0); // QTL
-	m3.convertToSubstitution = F;
+	//	// M3 mutations good on open ocean
+	//	initializeMutationType("m3", 0.5, "n", 0.0, 1.0); // QTL
+	//	m3.convertToSubstitution = F;
 	// Initialize Genome
-	initializeGenomicElementType("g1", c(m1, m2, m3), c(1, 0.1, 0.1));
+	//	initializeGenomicElementType("g1", c(m1, m2, m3), c(1, 0.1, 0.1));
+	initializeGenomicElementType("g1", c(m1, m2), c(1, 0.1));
 	initializeGenomicElement(g1, 0, G-1);
 	//initializeMutationRate(0); // Keeping this as 0 for the TreeSequence analysis
 	initializeMutationRate(Mu); // Running like this for now to test local adaptation
@@ -49,7 +50,7 @@ initialize() {
 	defineConstant("habitat_image", "./habitat-extended.png"); // map file location
 	// Map 3: Grayscale salinity gradient 
 	defineConstant("habitat_limit_image", "./habitat-limit.png");
-	defineConstant("salinity_gradient_image", "./winter-salinity-grayscale.png"); // map file location
+	defineConstant("salinity_gradient_image", "./extreme-salinity.png"); // map file location
 	if (!exists("W")) defineConstant("W", (19.5));  // width of the simulated area
 	if (!exists("H")) defineConstant("H", (19.5));  // height of the simulated area
 	defineConstant("StartPop", asInteger(K*W*H/10));
@@ -208,7 +209,7 @@ early() {
 }
 
 mutationEffect(m2) { return 1.0; }
-mutationEffect(m3) { return 1.0; }
+//mutationEffect(m3) { return 1.0; }
 
 late() {
 	
