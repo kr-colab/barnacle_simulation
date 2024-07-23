@@ -26,22 +26,30 @@ initialize() {
 	
 	// Genome
 	defineConstant("G", 1e6);   // Genome length 1 Mbp for now
-	//defineConstant("Mu", 1e-8); // Mutation Rate
+	defineConstant("Mu", 1e-8); // Mutation Rate
 	defineConstant("Re", 1e-8); // Recombination Rate
-	initializeMutationType("m1", 0.5, "f", 0.0);
-	initializeGenomicElementType("g1", m1, 1.0);
+	initializeMutationType("m1", 0.5, "f", 0.0);;
+	// M2 mutations good in estuary
+	initializeMutationType("m2", 0.5, "n", 0.0, 1.0); // QTL
+	m2.convertToSubstitution = F;	
+	// M3 mutations good on open ocean
+	initializeMutationType("m3", 0.5, "n", 0.0, 1.0); // QTL
+	m3.convertToSubstitution = F;
+	// Initialize Genome
+	initializeGenomicElementType("g1", c(m1, m2, m3), c(1, 0.1, 0.1));
 	initializeGenomicElement(g1, 0, G-1);
-	initializeMutationRate(0); // Keeping this as 0 for the TreeSequence analysis
+	//initializeMutationRate(0); // Keeping this as 0 for the TreeSequence analysis
+	initializeMutationRate(Mu); // Running like this for now to test local adaptation
 	initializeRecombinationRate(Re);
 	
 	// Maps
 	// Map 1: Water vs Land for juvenile dispersal
-	defineConstant("coast_image", "./coos-bay-coast-and-salinity.png"); // map file location
+	defineConstant("coast_image", "./coos-bay-coastline.png"); // map file location
 	// Map 2: Available habitat for adults
 	defineConstant("habitat_image", "./habitat-extended.png"); // map file location
 	// Map 3: Grayscale salinity gradient 
 	defineConstant("habitat_limit_image", "./habitat-limit.png");
-	defineConstant("salinity_gradient_image", "./extreme-salinity.png"); // map file location
+	defineConstant("salinity_gradient_image", "./winter-salinity-grayscale.png"); // map file location
 	if (!exists("W")) defineConstant("W", (19.5));  // width of the simulated area
 	if (!exists("H")) defineConstant("H", (19.5));  // height of the simulated area
 	defineConstant("StartPop", asInteger(K*W*H/10));
@@ -91,13 +99,20 @@ initialize() {
 	defineConstant("Map3", map3_vals);
 	Map3.rescale(min=1e-7);
 	
-	// Map 4: Smoothed adult settlement habitat
+	// Map 4: Map of salinity
 	map4Image = Image(salinity_gradient_image);
 	map4_vals = 1-map4Image.floatR;
 	map4_vals = p1.defineSpatialMap("salinity", "xy", map4_vals, 
 		valueRange=c(0.0,1.0), colors=c('#FFFFFF', '#000000'));
 	defineConstant("Map4", map4_vals);
-	Map4.rescale(min=1e-7);
+	//	Map4.rescale(min=1e-7);
+	
+	// Map 5: Inverse map of salinity
+	map5_vals = map4Image.floatR;
+	map5_vals = p1.defineSpatialMap("salinity", "xy", map5_vals, 
+		valueRange=c(0.0,1.0), colors=c('#FFFFFF', '#000000'));
+	defineConstant("Map5", map5_vals);
+	//	Map5.rescale(min=1e-7);
 	
 
 //3. Set starting point for initial population
@@ -149,7 +164,7 @@ early() {
 	juveniles = p1.subsetIndividuals(maxAge = settlementAge - 1);	
 	for (individual in juveniles){
 		pos = individual.spatialPosition;
-		salinity_value = p1.spatialMapValue("salinity", pos);
+		salinity_value = (p1.spatialMapValue("salinity", pos));
 		if (runif(1) > salinity_value)		
 				sim.killIndividuals(individual);
 	}
@@ -192,9 +207,21 @@ early() {
 	
 }
 
+mutationEffect(m2) { return 1.0; }
+mutationEffect(m3) { return 1.0; }
+
 late() {
 	
+	// Scale the fitness of the individuals based on their location in the map
+	inds = sim.subpopulations.individuals;
+	pos = inds.spatialPosition;
+	// Phenotype of m2 mutations, better in estuary
+	phenotype_m2 = inds.sumOfMutationsOfType(m2);
+	optimum_m2 = Map5.mapValue(pos);
+	inds.fitnessScaling = 1.0 + dnorm(phenotype_m2, optimum_m2, 0.1);
+	
 	// kill adults close to the maximum lifespan (~10yrs)
+	// TODO: summarize this to an rbinom()
 	inds = p1.individuals;
 	ages = inds.age;
 	inds8 = inds[(ages >= (8*TICKS_PER_YEAR)) & (ages < (9*TICKS_PER_YEAR))];
@@ -205,15 +232,15 @@ late() {
 	death10 = (runif(inds10.size()) < 0.95);
 	sim.killIndividuals(c(inds8[death8], inds9[death9], inds10[death10]));
 
-	// Density map (when I want to add back in
-	density=summarizeIndividuals(p1.individuals, c(25,25), p1.spatialBounds, operation="individuals.size();",
-		empty=0.0, perUnitArea=T);
-	p1.defineSpatialMap("density", "xy", density, T, c(0,K), colors(20, "viridis"));	
+//	// Density map (when I want to add back in
+//	density=summarizeIndividuals(p1.individuals, c(25,25), p1.spatialBounds, operation="individuals.size();",
+//		empty=0.0, perUnitArea=T);
+//	p1.defineSpatialMap("density", "xy", density, T, c(0,K), colors(20, "viridis"));	
 
 }
 
 1000 late() { 
-	sim.treeSeqOutput("./Week 5/balGla_5-1.trees");
+	//sim.treeSeqOutput("./Week 5/balGla_5-1.trees");
 	catn("Done.");
 	sim.simulationFinished();
 }
