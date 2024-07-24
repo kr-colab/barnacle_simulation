@@ -50,7 +50,7 @@ initialize() {
 	defineConstant("salinity_gradient_image", "./extreme-salinity.png"); // map file location
 	if (!exists("W")) defineConstant("W", (19.5));  // width of the simulated area
 	if (!exists("H")) defineConstant("H", (19.5));  // height of the simulated area
-	defineConstant("StartPop", asInteger(K*W*H/10));
+	defineConstant("StartPop", asInteger(K*W*H));
 	
 	
 	// spatial competition
@@ -156,7 +156,7 @@ early() {
 		pos = individual.spatialPosition;
 		salinity_lvl = (p1.spatialMapValue("salinity", pos));
 		// Fitness according to salinity levels. Higher survival at mid salinity levels
-		salinity_mid = 0.5;
+		salinity_mid = 0.75;
 		salinity_sd = 0.6;
 		individual.fitnessScaling = individual.fitnessScaling * (dnorm(salinity_lvl, salinity_mid, salinity_sd)/dnorm(salinity_mid, salinity_mid, salinity_sd));
 	}
