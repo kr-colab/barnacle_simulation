@@ -1,0 +1,283 @@
+// Keywords: nonWF, non-Wright-Fisher, continuous space, continuous spatial landscape, selfing, spatial competition, spatial mate choice
+
+initialize() {
+	initializeSLiMModelType("nonWF");
+	initializeSLiMOptions(dimensionality="xy");
+	initializeTreeSeq();
+	
+	// NOTE: I adjusted K and Fecundity so this could run on my machine for troubleshooting, but these need to be adjusted further.
+	
+//1. Set biological constants
+	defineConstant("TICKS_PER_YEAR", 12);
+	defineConstant("settlementAge", 2); // larval stage is 1 month between dispersal and settlement
+	defineConstant("maturityAge", 8); // juvenile stage is 6 months between settlement and beginning of brooding
+
+	// TODO: This has to be largely increased, since now it has 10K^2 adults per 10Km x 10Km
+	defineConstant("K", 9.75);  // carrying-capacity density
+	// Adult mating distance is VERY small, so just scale it by K
+	defineConstant("SAS", 9.75);  // sigma_S, the spatial interaction width for Adults Settlement
+	defineConstant("SAR", (3.9)/sqrt(K)); //sigma_S, the spatial interaction width for Adult Reproduction
+	defineConstant("SJ", 1.9);  // sigma_S, the spatial interaction width for Juvenile Dispersal
+	defineConstant("SDJ", 0.975); //sigma_S, the standard deviation of the spatial interation width for Juvenile Dispersal
+	
+	//Fecundity & Reproduction
+	defineConstant("Fecundity", 1.0); // mean fecundity times the probability that new offpsring survive to become an adult (therefore, this number is much lower than the actual fecundity)
+	defineConstant("RHO", Fecundity/((1+Fecundity) * K)); // constant in spatial competition function	
+	defineConstant("PBroodMonth", 6.0); // Month (in 12 tick cycle) where PBrood is highest
+	defineConstant("PBroodSD", 1.5); //SD from PBroodMonth for normal distribution
+	defineConstant("PBroodMax", 0.7); //Value of PBrood at PBroodMonth (highest value of normal distribution)
+	
+	// Base survival per year
+	defineConstant("PSURVIVAL", 0.98);
+	
+//2. Set genomic constants
+	defineConstant("G", 1e6);   // Genome length 1 Mbp for now
+	defineConstant("Mu", 1e-8); // Mutation Rate, 1e-8 for adaptive mutations. Neutral will be added later.
+	defineConstant("Re", 1e-8); // Recombination Rate
+	// QTL for fresh vs salt water
+	initializeMutationType("m1", 0.5, "n", 0.0, 1.0);
+	m1.convertToSubstitution = F;
+	// Initialize the genome:
+	// 10% of the genome will have the QTL
+	initializeGenomicElementType("g1", m1, 1.0);
+	initializeGenomicElement(g1, 0, (asInteger(G/10)-1));
+	// The rest of the genome is neutral and will not have the QTL
+	initializeGenomicElementType("g2", m1, 1.0);
+	initializeGenomicElement(g2, asInteger(G/10), G-1);
+	//initializeMutationRate(0); // Keeping this as 0 for the TreeSequence analysis
+	initializeMutationRate(Mu); // Running like this for now to test local adaptation
+	initializeRecombinationRate(Re);
+	
+//3. Define maps and spatial constraints
+	// Map 1: Water vs Land for juvenile dispersal
+	defineConstant("coast_image", "./coos-bay-coastline.png"); // map file location
+	// Map 2: Available habitat for adults
+	defineConstant("habitat_image", "./habitat-extended.png"); // map file location
+	// Map 3: Distance limit for habitat settlement
+	defineConstant("habitat_limit_image", "./habitat-limit.png"); // map file location
+	// Map 4: Salinity gradient
+	defineConstant("salinity_gradient_image", "./extreme-salinity.png"); // map file location
+	if (!exists("W")) defineConstant("W", (19.5));  // width of the simulated area, units per km = 1
+	if (!exists("H")) defineConstant("H", (19.5));  // height of the simulated area, units per km = 1
+	defineConstant("StartPop", asInteger(K * W * H));
+	
+	// spatial competition
+	initializeInteractionType(1, "xy", reciprocal=T, maxDistance=SAR*3);
+	i1.setInteractionFunction("n", 1.0, SAR);
+	i1.setConstraints("both", minAge = settlementAge);
+	
+	// spatial mate choice
+	initializeInteractionType(2, "xy", reciprocal=T, maxDistance=SAR);
+	i2.setInteractionFunction("n", 1.0, SAR);
+	i2.setConstraints("both", minAge = maturityAge);
+}
+1 first(){
+
+//1. Add population p1 and set its spatial bounds
+	
+	sim.addSubpop("p1", asInteger(StartPop));
+	p1.setSpatialBounds(c(0, 0, W, H));
+	p1.individuals.age = rdunif(StartPop, min=TICKS_PER_YEAR, max=TICKS_PER_YEAR*8);
+
+	
+//2. Process the maps
+	// Map 1: Coos bay outline
+	map1Image = Image(coast_image);
+	map1_vals = 1-map1Image.floatR; // converts the red information of an rgb image to a normalized scale from 0-1
+	map1_vals = p1.defineSpatialMap("coastOutline", "xy", map1_vals, // reads the normalized scale so that disperal is
+		valueRange=c(0.0, 1.0), colors=c('#FFFFFF', '#000000'));			// directed towards black (1) and away from white (0)
+	defineConstant("Map1", map1_vals);
+	Map1.rescale(min=1e-7);
+	
+	// Map 2: Settlement habitat
+	map2Image = Image(habitat_image);
+	map2_vals = 1-map2Image.floatR;
+	map2_vals = p1.defineSpatialMap("habitat", "xy", map2_vals, 
+		valueRange=c(0.0, 1.0), colors=c('#FFFFFF', '#000000'));
+	defineConstant("Map2", map2_vals);
+	Map2.rescale(min=1e-7);
+	
+	// Map 3: Settlement limit
+	map3Image = Image(habitat_limit_image);
+	map3_vals = 1-(map3Image.floatR); // *(1.0-0.0);	
+	map3_vals = p1.defineSpatialMap("habitatLimit", "xy", map3_vals,
+		valueRange=c(0.0, 0.5), colors=c('#FFFFFF', '#000000'));
+	defineConstant("Map3", map3_vals);
+	Map3.rescale(min=1e-7);
+	
+	// Map 4: Map of salinity
+	map4Image = Image(salinity_gradient_image);
+	map4_vals = 1-map4Image.floatR;
+	map4_vals = p1.defineSpatialMap("salinity", "xy", map4_vals, 
+		valueRange=c(0.0,1.0), colors=c('#FFFFFF', '#000000'));
+	defineConstant("Map4", map4_vals);
+	//	Map4.rescale(min=1e-7);
+
+//3. Set starting point for initial population
+	//a. Focused starting point for testing dispersal
+	// for (ind in p1.individuals) {
+		//ind.x = rnorm(1, 16.575, 0.25);
+		//ind.y = rnorm(1, 9.75, 0.25);
+	//}	
+		
+	//b. Starting near settlement habitat (as if spawned by adults)	
+	ind = p1.individuals;
+		pos = ind.spatialPosition;	
+		pos = Map2.sampleNearbyPoint(pos, INF, "n", SAS*10);	
+		ind.setSpatialPosition(pos);
+}
+
+first() {
+
+//1. look for mates
+	i2.evaluate(p1);
+	
+//2. move all larvae in the ocean
+	step_count = 10;
+	larvae = p1.subsetIndividuals(maxAge = settlementAge-1);
+	pos = larvae.spatialPosition;
+	for (i in 1:step_count)	
+		pos = Map1.sampleNearbyPoint(pos, SJ/(sqrt(10)), "n", SDJ/(sqrt(10))); // SJ represents the standard deviation of settlement
+	larvae.setSpatialPosition(pos);
+}
+
+reproduction() {
+
+//1. choose our nearest neighbor as a mate, within the max distance
+	mate = i2.drawByStrength(individual, 1);
+	pos = individual.spatialPosition;
+	//Adjusted Fecundity has direct relationship with salinity
+	adjustedFecundity = (Fecundity + p1.spatialMapValue("salinity", pos));
+	//Adjust probability of brooding according time of year
+	month = (community.tick%TICKS_PER_YEAR)+1;
+	PBrood = dnorm(month, PBroodMonth, PBroodSD) * (PBroodMax/dnorm(PBroodMonth, PBroodMonth, PBroodSD));
+	nOff = rpois (1, adjustedFecundity);
+	if ((mate.size() > 0) & (runif(1) < PBrood) & (nOff>0)) {
+		p1.addCrossed(individual, mate, count=nOff);
+	}
+}	
+
+early() {
+	
+//1. Define age groups
+	larvae = p1.subsetIndividuals(maxAge = settlementAge-1);
+	adults = p1.subsetIndividuals(minAge = settlementAge);	
+		juveniles = p1.subsetIndividuals(minAge = settlementAge, maxAge = maturityAge-1);
+			new_juveniles = p1.subsetIndividuals(minAge = settlementAge, maxAge = settlementAge);
+		mature_adults = p1.subsetIndividuals(minAge = maturityAge);
+	
+//2. Adjust juvenile fitness based on environment
+	for (individual in juveniles){
+		pos = individual.spatialPosition;
+		salinity_lvl = (p1.spatialMapValue("salinity", pos));
+		 //Fitness according to salinity levels. Higher survival at mid salinity levels
+		salinity_mid = 0.5;
+		salinity_sd = 0.6;
+		individual.fitnessScaling = individual.fitnessScaling * (dnorm(salinity_lvl, salinity_mid, salinity_sd)/dnorm(salinity_mid, salinity_mid, salinity_sd));
+	}
+	
+//3. move new juveniles towards habitable area
+	for (individual in new_juveniles){
+		pos = individual.spatialPosition;
+		if ((0.5) >= p1.spatialMapValue("habitatLimit", pos))
+			sim.killIndividuals(individual);	
+	}	
+	
+	step_count = 9;
+	for (i in 1:step_count)	{
+		new_juveniles = p1.subsetIndividuals(minAge = settlementAge, maxAge = settlementAge);
+		pos = new_juveniles.spatialPosition;		
+		pos = Map3.sampleNearbyPoint(pos, SJ/(sqrt(9)), "n", SDJ/(sqrt(9))); // SJ represents the standard deviation of settlement
+		new_juveniles.setSpatialPosition(pos);
+	}
+		
+//4. make juveniles settle to habitable area
+	pos = new_juveniles.spatialPosition;
+	pos = Map2.sampleNearbyPoint(pos, INF, "n", SAS); // SAS represents the standard deviation of settlement	
+	new_juveniles.setSpatialPosition(pos);
+	//TODO: set a lower maxdistance, adjust habitat limit map or max distance
+	
+//5. kill juvelines who settle in freshwater
+	//for (individual in juveniles){
+	//	pos = individual.spatialPosition;
+	//	salinity_value = (p1.spatialMapValue("salinity", pos));
+	//	if (runif(1) > salinity_value)		
+	//			sim.killIndividuals(individual);
+	//}
+	
+//6. spatial competition provides density-dependent selection
+	i1.evaluate(p1);
+	adults = p1.subsetIndividuals(minAge = settlementAge);	
+	// Add an if statement so the fitness reductions is only in adults, aka larvae are floating around and do not compete with the adults
+		competition = i1.localPopulationDensity(adults);
+	// Determine the location in the map to scale the fitness
+	adult_local_l = p1.spatialMapValue("habitat", adults.spatialPosition);
+	adults.fitnessScaling = 1/(1 + (RHO * competition / adult_local_l));
+}
+
+//1. Set mutation effects
+mutationEffect(m1) { return 1.0; }
+
+late() {
+
+//1. Scale the fitness of the individuals based on their location in the map
+	inds = sim.subpopulations.individuals;
+	pos = inds.spatialPosition;
+	// Phenotype of m2 mutations, better in estuary
+	phenotype_m1 = inds.sumOfMutationsOfType(m1);
+	environment_m1 = Map4.mapValue(pos);
+<<<<<<< HEAD
+	// TODO: Adjust SD for the environment landscape. What should it be?
+	environment_sd = 0.01;
+	inds.fitnessScaling = inds.fitnessScaling * (1+dnorm(phenotype_m1, environment_m1, environment_sd));
+=======
+	environment_sd = 0.01;
+	inds.fitnessScaling = inds.fitnessScaling * (1+dnorm(phenotype_m1, environment_m1, environment_sd));
+
+//2. Color the individuals based on age (redefine stages and color accordingly)
+	larvae = p1.subsetIndividuals(maxAge = settlementAge-1);
+	//adults = p1.subsetIndiviudals(minAge = settlementAge);	
+		juveniles = p1.subsetIndividuals(minAge = settlementAge, maxAge = maturityAge-1);
+			new_juveniles = p1.subsetIndividuals(minAge = settlementAge, maxAge = settlementAge);
+		mature_adults = p1.subsetIndividuals(minAge = maturityAge);
+	larvae.color = "red";
+	juveniles.color = "yellow";
+	new_juveniles.color = "orange";
+	mature_adults.color = "green";	
+
+>>>>>>> f4225df430b9904b263a01edfb169d52dda073c3
+	
+//3. kill adults close to the maximum lifespan (~10yrs)
+	//TODO: Is this correct?
+	for (individual in p1.individuals){
+		age = asInteger(individual.age/TICKS_PER_YEAR);
+		// Test for survival based on the binomial distribution
+		if ((rbinom(1, age, PSURVIVAL)) < age)
+			sim.killIndividuals(individual);
+	}
+
+<<<<<<< HEAD
+//	// Density map (when I want to add back in
+//	density=summarizeIndividuals(p1.individuals, c(25,25), p1.spatialBounds, operation="individuals.size();",
+//		empty=0.0, perUnitArea=T);
+//	p1.defineSpatialMap("density", "xy", density, T, c(0,K), colors(20, "viridis"));	
+=======
+
+//4. process density map 
+	//density=summarizeIndividuals(p1.individuals, c(25,25), p1.spatialBounds, operation="individuals.size();", empty=0.0, perUnitArea=T);
+	//	p1.defineSpatialMap("density", "xy", density, T, c(0,K), colors(20, "viridis"));	
+>>>>>>> f4225df430b9904b263a01edfb169d52dda073c3
+
+}
+
+6000 late() { 
+	//sim.treeSeqOutput("./Week 6/balGla_5-1.trees");
+	catn("Done.");
+	sim.simulationFinished();
+	
+}
+
+
+	
+	// density map coloration options: "cm", "heat", "terrain"; parula", "hot", "jet", 
+	// "turbo", "gray"; "magma", "inferno", "plasma", "viridis", and "cividis" 	
