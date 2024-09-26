@@ -47,9 +47,11 @@ initialize() {
 	defineConstant("habitat_image", "./habitat-extended.png"); // map file location
 	// Map 3: Distance limit for habitat settlement
 	defineConstant("habitat_limit_image", "./habitat-limit.png"); // map file location
-	// Map 4: Salinity gradient
-	defineConstant("salinity_gradient_image", "./extreme-salinity.png"); // map file location
-	// Map 5: Colorful salinity graphic (display only)	
+	// Map 4: Winter salinity gradient
+	defineConstant("winter_salinity_gradient", "./winter-salinity-grayscale.png"); // map file location
+	// Map 5: Summer salinity gradient
+	defineConstant("summer_salinity_gradient", "./summer-salinity-grayscale.png"); // map file location
+	// Map 6: Colorful salinity graphic (display only)	
 	defineConstant("salinity_gradient_graphic", "./coastline-salinity-colorful.png");
 	if (!exists("W")) defineConstant("W", (19.5));  // width of the simulated area, units per km = 1
 	if (!exists("H")) defineConstant("H", (19.5));  // height of the simulated area, units per km = 1
@@ -99,21 +101,30 @@ initialize() {
 	defineConstant("Map3", map3_vals);
 	Map3.rescale(min=1e-7);
 	
-	// Map 4: Map of salinity
-	map4Image = Image(salinity_gradient_image);
+	// Map 4: Winter salinity
+	map4Image = Image(winter_salinity_gradient);
 	map4_vals = 1-map4Image.floatR;
-	map4_vals = p1.defineSpatialMap("salinity", "xy", map4_vals, 
+	map4_vals = p1.defineSpatialMap("winterSalinity", "xy", map4_vals, 
 		valueRange=c(0.0,1.0), colors=c('#FFFFFF', '#000000'));
 	defineConstant("Map4", map4_vals);
 	//	Map4.rescale(min=1e-7);
 	
-	// Map 5: salinity graphic
-	map5Image = Image(salinity_gradient_graphic);
+	// Map 5: Summer salinity
+	map5Image = Image(summer_salinity_gradient);
 	map5_vals = map5Image.floatR;
-	map5_vals = p1.defineSpatialMap("colorful", "xy", map5_vals);
+	map5_vals = p1.defineSpatialMap("summerSalinity", "xy", map5_vals);
 		//valueRange=c(0.0,1.0), colors=c('#FFFFFF', '#000000'));
 	defineConstant("Map5", map5_vals);
-	//	Map4.rescale(min=1e-7);
+	//	Map5.rescale(min=1e-7);
+	
+	// Map 6: Changing salinity graphic
+	month = (community.tick%TicksPerYear)+1;
+	if (5 < month < 10) map6Image = Image(summer_salinity_gradient); else map6Image = Image(winter_salinity_gradient);
+	map6_vals = map6Image.floatR;
+	map6_vals = p1.defineSpatialMap("changingSalinity", "xy", map6_vals);
+		//valueRange=c(0.0,1.0), colors=c('#FFFFFF', '#000000'));
+	defineConstant("Map6", map6_vals);
+	//	Map6.rescale(min=1e-7);
 
 //3. Set starting point for initial population
 	//a. Focused starting point for testing dispersal
@@ -129,7 +140,7 @@ initialize() {
 		ind.setSpatialPosition(pos);
 
 //4. Set up Log File
-	log_file_title = "./Week 8/balGla_log.txt";
+	log_file_title = "./balGla log files/balGla_log.txt";
 	log = community.createLogFile(log_file_title, logInterval=1);
 	log.addCycle();
 	if (community.tick%TicksPerYear == 1){
@@ -160,7 +171,9 @@ reproduction() {
 	mate = i2.drawByStrength(individual, 1);
 	pos = individual.spatialPosition;
 	//Adjusted Fecundity has direct relationship with salinity
-	sal_value = (p1.spatialMapValue("salinity", pos));
+	month = (community.tick%TicksPerYear)+1;
+	if (5 < month < 10) sal_value = (p1.spatialMapValue("summerSalinity", pos)); else sal_value = (p1.spatialMapValue("winterSalinity", pos));
+	//sal_value = (p1.spatialMapValue("winterSalinity", pos)); //TODO: adjust this to account for seasonal salinity
 	adjustedFecundity = (1 + sal_value);
 	//Adjust probability of brooding according time of year
 	month = (community.tick%TicksPerYear)+1;
@@ -184,7 +197,9 @@ early() {
 //2. Adjust juvenile fitness based on environment
 	for (individual in juveniles){
 		pos = individual.spatialPosition;
-		salinity_lvl = (p1.spatialMapValue("salinity", pos));
+		month = (community.tick%TicksPerYear)+1;
+		if (5 < month < 10) salinity_lvl = (p1.spatialMapValue("summerSalinity", pos)); else salinity_lvl = (p1.spatialMapValue("winterSalinity", pos));
+		//salinity_lvl = (p1.spatialMapValue("winterSalinity", pos));
 		 //Fitness according to salinity levels. Higher survival at mid salinity levels
 		salinity_mid = 0.6;
 		salinity_sd = 0.5;
@@ -215,9 +230,11 @@ early() {
 //5. kill juvelines who settle in freshwater
 	for (individual in juveniles){
 		pos = individual.spatialPosition;
-		salinity_value = (p1.spatialMapValue("salinity", pos));
-		if (runif(1) > salinity_value*1.0)	
-				sim.killIndividuals(individual);
+		if (5 < month < 10) salinity_value = (p1.spatialMapValue("summerSalinity", pos)); else salinity_value = (p1.spatialMapValue("winterSalinity", pos));
+		//salinity_value = (p1.spatialMapValue("winterSalinity", pos));
+//		if (runif(1) > salinity_value*3.0) //TODO: need to determine runif cutoff (how much salinity_value is multipled by 	
+//				sim.killIndividuals(individual);
+	
 	}
 	
 //6. spatial competition provides density-dependent selection
@@ -235,25 +252,29 @@ mutationEffect(m1) { return 1.0; }
 
 late() {
 
+	month = (community.tick%TicksPerYear)+1;
+	
 //1. Scale the fitness of the individuals based on their location in the map
 	juveniles = p1.subsetIndividuals(minAge = SettlementAge, maxAge = MaturityAge-1);
 	inds = sim.subpopulations.individuals;
 	pos = inds.spatialPosition;
 	// Phenotype of m2 mutations, better in estuary
 	phenotype_m1 = inds.sumOfMutationsOfType(m1);
-	environment_m1 = Map4.mapValue(pos);
+	month = (community.tick%TicksPerYear)+1;	
+	if (month >= 6) environment_m1 = Map5.mapValue(pos); else environment_m1=Map4.mapValue(pos);
+	//environment_m1 = Map4.mapValue(pos);
 	environment_sd = 0.2;
 	inds.fitnessScaling = inds.fitnessScaling * (1+dnorm(phenotype_m1, environment_m1, environment_sd)/dnorm(phenotype_m1, 0.7, environment_sd));
 
 //2. Color the individuals based on age (redefine stages and color accordingly)
-	larvae = p1.subsetIndividuals(maxAge = SettlementAge-1);
-	//adults = p1.subsetIndiviudals(minAge = SettlementAge);	
-		juveniles = p1.subsetIndividuals(minAge = SettlementAge, maxAge = MaturityAge-1);
-			new_juveniles = p1.subsetIndividuals(minAge = SettlementAge, maxAge = SettlementAge);
-		mature_adults = p1.subsetIndividuals(minAge = MaturityAge);
-	larvae.color = "#C00000";
-	juveniles.color = "#FFC000";
-	mature_adults.color = "#196B24";	
+//	larvae = p1.subsetIndividuals(maxAge = SettlementAge-1);
+//	//adults = p1.subsetIndiviudals(minAge = SettlementAge);	
+//		juveniles = p1.subsetIndividuals(minAge = SettlementAge, maxAge = MaturityAge-1);
+//			new_juveniles = p1.subsetIndividuals(minAge = SettlementAge, maxAge = SettlementAge);
+//		mature_adults = p1.subsetIndividuals(minAge = MaturityAge);
+//	larvae.color = "#C00000";
+//	juveniles.color = "#FFC000";
+//	mature_adults.color = "#196B24";	
 
 	
 //3. kill adults close to the maximum lifespan (~10yrs)
