@@ -172,11 +172,11 @@ reproduction() {
 	pos = individual.spatialPosition;
 	//Adjusted Fecundity has direct relationship with salinity
 	month = (community.tick%TicksPerYear)+1;
-	if (5 < month < 10) sal_value = (p1.spatialMapValue("summerSalinity", pos)); else sal_value = (p1.spatialMapValue("winterSalinity", pos));
+	if (5 < month < 10) sal_value = (p1.spatialMapValue("summerSalinity", pos)); 
+		else sal_value = (p1.spatialMapValue("winterSalinity", pos));
 	//sal_value = (p1.spatialMapValue("winterSalinity", pos)); //TODO: adjust this to account for seasonal salinity
 	adjustedFecundity = (1 + sal_value);
 	//Adjust probability of brooding according time of year
-	month = (community.tick%TicksPerYear)+1;
 	PBrood = dnorm(month, PBroodMonth, PBroodSD) * (PBroodMax/dnorm(PBroodMonth, PBroodMonth, PBroodSD));
 //	PBrood =0.9;
 	nOff = rpois (1, adjustedFecundity);
@@ -228,13 +228,13 @@ early() {
 	//TODO: set a lower maxdistance, adjust habitat limit map or max distance
 	
 //5. kill juvelines who settle in freshwater
-	for (individual in juveniles){
+	juveniles = p1.subsetIndividuals(minAge = SettlementAge, maxAge = MaturityAge-1);
+	for (individual in juveniles){		
 		pos = individual.spatialPosition;
-		if (5 < month < 10) salinity_value = (p1.spatialMapValue("summerSalinity", pos)); else salinity_value = (p1.spatialMapValue("winterSalinity", pos));
-		//salinity_value = (p1.spatialMapValue("winterSalinity", pos));
-//		if (runif(1) > salinity_value*3.0) //TODO: need to determine runif cutoff (how much salinity_value is multipled by 	
-//				sim.killIndividuals(individual);
-	
+		if (5 < month < 10) salinity_value = (p1.spatialMapValue("summerSalinity", pos)); 
+			else salinity_value = (p1.spatialMapValue("winterSalinity", pos));
+		if (runif(1) > salinity_value)									
+				sim.killIndividuals(individual);
 	}
 	
 //6. spatial competition provides density-dependent selection
@@ -251,8 +251,6 @@ early() {
 mutationEffect(m1) { return 1.0; }
 
 late() {
-
-	month = (community.tick%TicksPerYear)+1;
 	
 //1. Scale the fitness of the individuals based on their location in the map
 	juveniles = p1.subsetIndividuals(minAge = SettlementAge, maxAge = MaturityAge-1);
@@ -261,20 +259,21 @@ late() {
 	// Phenotype of m2 mutations, better in estuary
 	phenotype_m1 = inds.sumOfMutationsOfType(m1);
 	month = (community.tick%TicksPerYear)+1;	
-	if (month >= 6) environment_m1 = Map5.mapValue(pos); else environment_m1=Map4.mapValue(pos);
+	if (5 < month < 10) environment_m1 = Map5.mapValue(pos); 
+		else environment_m1=Map4.mapValue(pos);
 	//environment_m1 = Map4.mapValue(pos);
 	environment_sd = 0.2;
 	inds.fitnessScaling = inds.fitnessScaling * (1+dnorm(phenotype_m1, environment_m1, environment_sd)/dnorm(phenotype_m1, 0.7, environment_sd));
 
 //2. Color the individuals based on age (redefine stages and color accordingly)
-//	larvae = p1.subsetIndividuals(maxAge = SettlementAge-1);
-//	//adults = p1.subsetIndiviudals(minAge = SettlementAge);	
-//		juveniles = p1.subsetIndividuals(minAge = SettlementAge, maxAge = MaturityAge-1);
-//			new_juveniles = p1.subsetIndividuals(minAge = SettlementAge, maxAge = SettlementAge);
-//		mature_adults = p1.subsetIndividuals(minAge = MaturityAge);
-//	larvae.color = "#C00000";
-//	juveniles.color = "#FFC000";
-//	mature_adults.color = "#196B24";	
+	larvae = p1.subsetIndividuals(maxAge = SettlementAge-1);
+	//adults = p1.subsetIndiviudals(minAge = SettlementAge);	
+		juveniles = p1.subsetIndividuals(minAge = SettlementAge, maxAge = MaturityAge-1);
+			new_juveniles = p1.subsetIndividuals(minAge = SettlementAge, maxAge = SettlementAge);
+		mature_adults = p1.subsetIndividuals(minAge = MaturityAge);
+	larvae.color = "#C00000";
+	juveniles.color = "#FFC000";
+	mature_adults.color = "#196B24";	
 
 	
 //3. kill adults close to the maximum lifespan (~10yrs)
