@@ -5,7 +5,6 @@ initialize() {
 	initializeSLiMOptions(dimensionality="xy");
 	initializeTreeSeq();
 	
-	
 //1. Set biological constants
 	defineConstant("TicksPerYear", 12);
 	defineConstant("SettlementAge", 2); // larval stage is 1 month between dispersal and settlement
@@ -140,7 +139,19 @@ initialize() {
 		ind.setSpatialPosition(pos);
 
 //4. Set up Log File
-	log_file_title = "./balGla log files/balGla_log.txt";
+	log_file_title = "./balGla log files/balGla_log_population.txt";
+	log = community.createLogFile(log_file_title, logInterval=1);
+	log.addCycle();
+	if (community.tick%TicksPerYear == 1){
+		log.addCustomColumn('Year', '(community.tick/TicksPerYear)-0.5;');
+	}
+	log.addCustomColumn('Larvae', 'p1.subsetIndividuals(maxAge=SettlementAge-1).size();');
+	log.addCustomColumn('Juveniles', 'p1.subsetIndividuals(minAge=SettlementAge, maxAge=MaturityAge-1).size();');
+	log.addCustomColumn('Adults', 'p1.subsetIndividuals(minAge=MaturityAge).size();');
+	log.addCustomColumn('Total', 'p1.subsetIndividuals(maxAge=100).size();');
+	
+//5. Set up Log File
+	log_file_title = "./balGla log files/balGla_log_fitness.txt";
 	log = community.createLogFile(log_file_title, logInterval=1);
 	log.addCycle();
 	if (community.tick%TicksPerYear == 1){
@@ -271,9 +282,9 @@ late() {
 		juveniles = p1.subsetIndividuals(minAge = SettlementAge, maxAge = MaturityAge-1);
 			new_juveniles = p1.subsetIndividuals(minAge = SettlementAge, maxAge = SettlementAge);
 		mature_adults = p1.subsetIndividuals(minAge = MaturityAge);
-	larvae.color = "#C00000";
-	juveniles.color = "#FFC000";
-	mature_adults.color = "#196B24";	
+	larvae.color = "#E69F00";
+	juveniles.color = "#56B4E9";
+	mature_adults.color = "#009E73";	
 
 //3. kill adults close to the maximum lifespan (~10yrs)
 	//TODO: Is this correct?
