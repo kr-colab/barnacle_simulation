@@ -51,7 +51,7 @@ initialize() {
 	// Map 5: Summer salinity gradient
 	defineConstant("summer_salinity_gradient", "./summer-salinity-grayscale.png"); // map file location
 	// Map 6: Colorful salinity graphic (display only)	
-	defineConstant("salinity_gradient_graphic", "./coastline-salinity-colorful.png");
+	defineConstant("salinity_gradient_graphic", "./summer-salinity-grayscale-old.png");
 	if (!exists("W")) defineConstant("W", (19.5));  // width of the simulated area, units per km = 1
 	if (!exists("H")) defineConstant("H", (19.5));  // height of the simulated area, units per km = 1
 	defineConstant("StartPop", asInteger(K*W*H/20));
@@ -110,20 +110,21 @@ initialize() {
 	
 	// Map 5: Summer salinity
 	map5Image = Image(summer_salinity_gradient);
-	map5_vals = map5Image.floatR;
-	map5_vals = p1.defineSpatialMap("summerSalinity", "xy", map5_vals);
-		//valueRange=c(0.0,1.0), colors=c('#FFFFFF', '#000000'));
+	map5_vals = 1-map5Image.floatR;
+	map5_vals = p1.defineSpatialMap("summerSalinity", "xy", map5_vals,
+		valueRange=c(0.0,1.0), colors=c('#FFFFFF', '#000000'));
 	defineConstant("Map5", map5_vals);
 	//	Map5.rescale(min=1e-7);
 	
-	// Map 6: Changing salinity graphic
-	month = (community.tick%TicksPerYear)+1;
-	if (5 < month < 10) map6Image = Image(summer_salinity_gradient); else map6Image = Image(winter_salinity_gradient);
-	map6_vals = map6Image.floatR;
-	map6_vals = p1.defineSpatialMap("changingSalinity", "xy", map6_vals);
-		//valueRange=c(0.0,1.0), colors=c('#FFFFFF', '#000000'));
-	defineConstant("Map6", map6_vals);
-	//	Map6.rescale(min=1e-7);
+//	// Map 6: Changing salinity graphic
+//	month = (community.tick%TicksPerYear)+1;
+//	//if (5 < month < 10) map6Image = Image(summer_salinity_gradient); else map6Image = Image(winter_salinity_gradient);
+//	map6Image = Image(salinity_gradient_graphic);
+//	map6_vals = map6Image.floatR;
+//	map6_vals = p1.defineSpatialMap("changingSalinity", "xy", map6_vals);
+//		//valueRange=c(0.0,1.0), colors=c('#FFFFFF', '#000000'));
+//	defineConstant("Map6", map6_vals);
+//	//	Map6.rescale(min=1e-7);
 
 //3. Set starting point for initial population
 //	//a. Focused starting point for testing dispersal
@@ -150,17 +151,17 @@ initialize() {
 	log.addCustomColumn('Adults', 'p1.subsetIndividuals(minAge=MaturityAge).size();');
 	log.addCustomColumn('Total', 'p1.subsetIndividuals(maxAge=100).size();');
 	
-//5. Set up Log File
-	log_file_title = "./balGla log files/balGla_log_fitness.txt";
-	log = community.createLogFile(log_file_title, logInterval=1);
-	log.addCycle();
-	if (community.tick%TicksPerYear == 1){
-		log.addCustomColumn('Year', '(community.tick/TicksPerYear)-0.5;');
-	}
-	log.addCustomColumn('Larvae', 'p1.subsetIndividuals(maxAge=SettlementAge-1).size();');
-	log.addCustomColumn('Juveniles', 'p1.subsetIndividuals(minAge=SettlementAge, maxAge=MaturityAge-1).size();');
-	log.addCustomColumn('Adults', 'p1.subsetIndividuals(minAge=MaturityAge).size();');
-	log.addCustomColumn('Total', 'p1.subsetIndividuals(maxAge=100).size();');
+////5. Set up Log File
+//	log_file_title = "./balGla log files/balGla_log_fitness.txt";
+//	log = community.createLogFile(log_file_title, logInterval=1);
+//	log.addCycle();
+//	if (community.tick%TicksPerYear == 1){
+//		log.addCustomColumn('Year', '(community.tick/TicksPerYear)-0.5;');
+//	}
+//	log.addCustomColumn('Larvae', 'p1.subsetIndividuals(maxAge=SettlementAge-1).size();');
+//	log.addCustomColumn('Juveniles', 'p1.subsetIndividuals(minAge=SettlementAge, maxAge=MaturityAge-1).size();');
+//	log.addCustomColumn('Adults', 'p1.subsetIndividuals(minAge=MaturityAge).size();');
+//	log.addCustomColumn('Total', 'p1.subsetIndividuals(maxAge=100).size();');
 }
 first() {
 
@@ -211,9 +212,9 @@ early() {
 		month = (community.tick%TicksPerYear)+1;
 		if (5 < month < 10) salinity_lvl = (p1.spatialMapValue("summerSalinity", pos)); else salinity_lvl = (p1.spatialMapValue("winterSalinity", pos));
 		//salinity_lvl = (p1.spatialMapValue("winterSalinity", pos));
-		 //Fitness according to salinity levels. Higher survival at mid salinity levels
-		salinity_mid = 0.6;
-		salinity_sd = 0.5;
+		 //Fitness according to salinity levels. Higher survival at high-mid salinity levels
+		salinity_mid = 0.6; //slight preference for high salinity (oceanic/darker side of map)
+		salinity_sd = 0.5; 
 		individual.fitnessScaling = individual.fitnessScaling * (dnorm(salinity_lvl, salinity_mid, salinity_sd)/dnorm(salinity_mid, salinity_mid, salinity_sd));
 	}
 	
