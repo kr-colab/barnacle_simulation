@@ -12,3 +12,5 @@ View(map_monthly_sal_surf)
 plot(map_monthly_sal_surf$x,map_monthly_sal_surf$y,
      xlim=c(1180000,1220000),
      ylim=c(180000,220000))
+
+install.packages("ggplot2")
