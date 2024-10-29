@@ -50,8 +50,7 @@ initialize() {
 	defineConstant("winter_salinity_gradient", "./winter-salinity-grayscale.png"); // map file location
 	// Map 5: Summer salinity gradient
 	defineConstant("summer_salinity_gradient", "./summer-salinity-grayscale.png"); // map file location
-	// Map 6: Colorful salinity graphic (display only)	
-	defineConstant("salinity_gradient_graphic", "./summer-salinity-grayscale-old.png");
+	
 	if (!exists("W")) defineConstant("W", (19.5));  // width of the simulated area, units per km = 1
 	if (!exists("H")) defineConstant("H", (19.5));  // height of the simulated area, units per km = 1
 	defineConstant("StartPop", asInteger(K*W*H/20));
@@ -140,7 +139,7 @@ initialize() {
 		ind.setSpatialPosition(pos);
 
 //4. Set up Log File
-	log_file_title = "./balGla log files/balGla_log_population.txt";
+	log_file_title = "./balGla_log_files/balGla_log.txt";
 	log = community.createLogFile(log_file_title, logInterval=1);
 	log.addCycle();
 	if (community.tick%TicksPerYear == 1){
@@ -150,18 +149,10 @@ initialize() {
 	log.addCustomColumn('Juveniles', 'p1.subsetIndividuals(minAge=SettlementAge, maxAge=MaturityAge-1).size();');
 	log.addCustomColumn('Adults', 'p1.subsetIndividuals(minAge=MaturityAge).size();');
 	log.addCustomColumn('Total', 'p1.subsetIndividuals(maxAge=100).size();');
+	log.addCustomColumn('Mean_Fitness', 'mean(p1.cachedFitness(NULL));');
+	log.addCustomColumn('SD_Fitness', 'sd(p1.cachedFitness(NULL));');	
+	log.addCustomColumn('Quantile_Fitness', 'quantile(p1.cachedFitness(NULL),0.5);');	
 	
-////5. Set up Log File
-//	log_file_title = "./balGla log files/balGla_log_fitness.txt";
-//	log = community.createLogFile(log_file_title, logInterval=1);
-//	log.addCycle();
-//	if (community.tick%TicksPerYear == 1){
-//		log.addCustomColumn('Year', '(community.tick/TicksPerYear)-0.5;');
-//	}
-//	log.addCustomColumn('Larvae', 'p1.subsetIndividuals(maxAge=SettlementAge-1).size();');
-//	log.addCustomColumn('Juveniles', 'p1.subsetIndividuals(minAge=SettlementAge, maxAge=MaturityAge-1).size();');
-//	log.addCustomColumn('Adults', 'p1.subsetIndividuals(minAge=MaturityAge).size();');
-//	log.addCustomColumn('Total', 'p1.subsetIndividuals(maxAge=100).size();');
 }
 first() {
 
@@ -215,7 +206,9 @@ early() {
 		 //Fitness according to salinity levels. Higher survival at high-mid salinity levels
 		salinity_mid = 0.6; //slight preference for high salinity (oceanic/darker side of map)
 		salinity_sd = 0.5; 
-		individual.fitnessScaling = individual.fitnessScaling * (dnorm(salinity_lvl, salinity_mid, salinity_sd)/dnorm(salinity_mid, salinity_mid, salinity_sd));
+//		individual.fitnessScaling = individual.fitnessScaling * (dnorm(salinity_lvl, salinity_mid, salinity_sd)/dnorm(salinity_mid, salinity_mid, salinity_sd));
+		individual.fitnessScaling = (dnorm(salinity_lvl, salinity_mid, salinity_sd)/dnorm(salinity_mid, salinity_mid, salinity_sd));
+
 	}
 	
 //3. move new juveniles towards habitable area
@@ -283,9 +276,9 @@ late() {
 		juveniles = p1.subsetIndividuals(minAge = SettlementAge, maxAge = MaturityAge-1);
 			new_juveniles = p1.subsetIndividuals(minAge = SettlementAge, maxAge = SettlementAge);
 		mature_adults = p1.subsetIndividuals(minAge = MaturityAge);
-	larvae.color = "#E69F00";
-	juveniles.color = "#56B4E9";
-	mature_adults.color = "#009E73";	
+//	larvae.color = "#E69F00";
+//	juveniles.color = "#56B4E9";
+//	mature_adults.color = "#009E73";	
 
 //3. kill adults close to the maximum lifespan (~10yrs)
 	//TODO: Is this correct?
@@ -316,7 +309,7 @@ late() {
 //		stop("Error writing csv file.");
 //}
 
-480 late() { 
+1200 late() { 
 	//sim.treeSeqOutput("./Week 6/balGla_5-1.trees");
 	catn("Done.");
 	sim.simulationFinished();
