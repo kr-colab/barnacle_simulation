@@ -264,11 +264,15 @@ late() {
 	// Phenotype of m2 mutations, better in estuary
 	phenotype_m1 = inds.sumOfMutationsOfType(m1);
 	month = (community.tick%TicksPerYear)+1;	
-	if (5 < month < 10) environment_m1 = Map5.mapValue(pos); 
-		else environment_m1=Map4.mapValue(pos);
-	//environment_m1 = Map4.mapValue(pos);
-	environment_sd = 0.2;
-	inds.fitnessScaling = inds.fitnessScaling * (1+dnorm(phenotype_m1, environment_m1, environment_sd)/dnorm(phenotype_m1, 0.7, environment_sd));
+//	if (5 < month < 10) environment_m1 = Map5.mapValue(pos); 
+//		else environment_m1=Map4.mapValue(pos);
+	if (5 < month < 10) environment_m1 = (p1.spatialMapValue("summerSalinity", pos)); 
+			else environment_m1 = (p1.spatialMapValue("winterSalinity", pos));
+	environment_sd = 0.1;
+//	fitness_value = (1+dnorm(phenotype_m1, environment_m1, environment_sd)/dnorm(phenotype_m1, 0.7, environment_sd));
+//	inds.fitnessScaling = inds.fitnessScaling * (1+dnorm(phenotype_m1, environment_m1, environment_sd)/dnorm(phenotype_m1, 0.7, environment_sd));
+	inds.fitnessScaling = inds.fitnessScaling * (1+dnorm(phenotype_m1, environment_m1, environment_sd));
+//	cat(fitness_value);
 
 //2. Color the individuals based on age (redefine stages and color accordingly)
 	larvae = p1.subsetIndividuals(maxAge = SettlementAge-1);
@@ -309,7 +313,7 @@ late() {
 //		stop("Error writing csv file.");
 //}
 
-1200 late() { 
+12000 late() { 
 	//sim.treeSeqOutput("./Week 6/balGla_5-1.trees");
 	catn("Done.");
 	sim.simulationFinished();
