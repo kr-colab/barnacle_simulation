@@ -9,7 +9,7 @@ initialize() {
 	defineConstant("TicksPerYear", 12);
 	defineConstant("SettlementAge", 2); // larval stage is 1 month between dispersal and settlement
 	defineConstant("MaturityAge", 7); // juvenile stage is 6 months between settlement and beginning of brooding
-	defineConstant("K", 200);  // carrying-capacity density
+	defineConstant("K", 20);  // carrying-capacity density
 	// Adult mating distance is VERY small, so just scale it by K
 	defineConstant("SAS", 9.75);  // sigma_S, the spatial interaction width for Adults Settlement
 	defineConstant("SAR", (3.9)/sqrt(K)); //sigma_S, the spatial interaction width for Adult Reproduction
@@ -204,7 +204,7 @@ early() {
 		if (5 < month < 10) salinity_lvl = (p1.spatialMapValue("summerSalinity", pos)); else salinity_lvl = (p1.spatialMapValue("winterSalinity", pos));
 		//salinity_lvl = (p1.spatialMapValue("winterSalinity", pos));
 		 //Fitness according to salinity levels. Higher survival at high-mid salinity levels
-		salinity_mid = 0.6; //slight preference for high salinity (oceanic/darker side of map)
+		salinity_mid = 0.75; //slight preference for high salinity (oceanic/darker side of map)
 		salinity_sd = 0.5; 
 //		individual.fitnessScaling = individual.fitnessScaling * (dnorm(salinity_lvl, salinity_mid, salinity_sd)/dnorm(salinity_mid, salinity_mid, salinity_sd));
 		individual.fitnessScaling = (dnorm(salinity_lvl, salinity_mid, salinity_sd)/dnorm(salinity_mid, salinity_mid, salinity_sd));
@@ -258,7 +258,6 @@ mutationEffect(m1) { return 1.0; }
 late() {
 	
 //1. Scale the fitness of the individuals based on their location in the map
-	juveniles = p1.subsetIndividuals(minAge = SettlementAge, maxAge = MaturityAge-1);
 	inds = sim.subpopulations.individuals;
 	pos = inds.spatialPosition;
 	// Phenotype of m2 mutations, better in estuary
