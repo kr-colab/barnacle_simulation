@@ -9,7 +9,7 @@ initialize() {
 	defineConstant("TicksPerYear", 12);
 	defineConstant("SettlementAge", 2); // larval stage is 1 month between dispersal and settlement
 	defineConstant("MaturityAge", 7); // juvenile stage is 6 months between settlement and beginning of brooding
-	defineConstant("K", 20);  // carrying-capacity density
+	defineConstant("K", 200);  // carrying-capacity density
 	// Adult mating distance is VERY small, so just scale it by K
 	defineConstant("SAS", 9.75);  // sigma_S, the spatial interaction width for Adults Settlement
 	defineConstant("SAR", (3.9)/sqrt(K)); //sigma_S, the spatial interaction width for Adult Reproduction
@@ -279,9 +279,9 @@ late() {
 		juveniles = p1.subsetIndividuals(minAge = SettlementAge, maxAge = MaturityAge-1);
 			new_juveniles = p1.subsetIndividuals(minAge = SettlementAge, maxAge = SettlementAge);
 		mature_adults = p1.subsetIndividuals(minAge = MaturityAge);
-//	larvae.color = "#E69F00";
-//	juveniles.color = "#56B4E9";
-//	mature_adults.color = "#009E73";	
+	larvae.color = "#E69F00";
+	juveniles.color = "#56B4E9";
+	mature_adults.color = "#009E73";	
 
 //3. kill adults close to the maximum lifespan (~10yrs)
 	//TODO: Is this correct?
