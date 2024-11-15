@@ -1,33 +1,4 @@
 # Barnacle simulation
-We are building a biologically and ecologically realistic SLiMulation of barnacles. 
+We are building a biologically and ecologically realistic simulation of the population genomics of the Pacific acorn barnacle (*Balanus glandula*) using SLiM 4.3.
 
-# Goals:
-## 1. Smaller map, higher resolution, Oregon Coast
-## 2. Build our own SLiMulation top down
-- genome (lenght, recombinations)
-- dispersal
-- reproduction
-- map -> fitness, dispersal
-- output (e.g. tree sequences)
-
-## 3. Make an IBD (isolation-by-distance) plot
-## 4. North/South clines
-
-
-# After SLiM 4.1 release
-- Implement life cycle
-- Seasonality
-- Others...
-- 
-
-# Variables to (possibly) focus on
-- North/South clines
-- Salinity
-- Isolation-by-distance
-- Type of coastal ecosystem?
-- Presence of predators?
-
-# Preparation for summer
-- Refresher on SLiM in general
-- find relevant data from Dave Sutherland's lab, read some literature on modeling Coos Bay currents. Specifically, are there maps we can use to make a velocity field map for SLiM? Reach out to Dave Sutherland.
-- Find out how to implement genetic aspect of adaptation/divergence (Jiseon will look into SLiM literature) in our SLiM script
+This starts with modeling the accurate life stages, behavior, and reproduction of *B. glandula* across the estuary of Coos Bay, Oregon. Following this, we layer environmental variables such as salinity and temperature onto our model of the bay, and then account for the effects of these variables on our population. Our current work is implementing local adaptation to these variables and testing how our population evolves over times. Included in this repository is the SLiM file, the the maps used to account for environmental variables, and the log files we use for data analysis. Stick around to see how this project shapes up!
